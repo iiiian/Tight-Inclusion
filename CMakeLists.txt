@@ -108,7 +108,10 @@ configure_file(
 add_subdirectory("${TIGHT_INCLUSION_SOURCE_DIR}")
 
 # Public include directory for Tight Inclusion
-target_include_directories(tight_inclusion PUBLIC "${TIGHT_INCLUSION_INCLUDE_DIR}")
+target_include_directories(tight_inclusion PUBLIC
+    $<BUILD_INTERFACE:${TIGHT_INCLUSION_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:include>
+)
 
 ################################################################################
 # Optional Definitions
@@ -159,3 +162,49 @@ target_compile_features(tight_inclusion PUBLIC cxx_std_17)
 if(TIGHT_INCLUSION_TOPLEVEL_PROJECT)
     add_subdirectory(app)
 endif()
+
+# Installation
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+set(TIGHT_INCLUSION_CONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tight_inclusion)
+
+install(
+    TARGETS tight_inclusion tight_inclusion_warnings
+    EXPORT tight_inclusionTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(
+    DIRECTORY "${TIGHT_INCLUSION_INCLUDE_DIR}/tight_inclusion/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/tight_inclusion"
+)
+
+configure_package_config_file(
+    "cmake/tight_inclusion/tight_inclusionConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/tight_inclusionConfig.cmake"
+    INSTALL_DESTINATION ${TIGHT_INCLUSION_CONFIG_INSTALL_DIR}
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/tight_inclusionConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(
+    EXPORT tight_inclusionTargets
+    FILE tight_inclusionTargets.cmake
+    NAMESPACE tight_inclusion::
+    DESTINATION ${TIGHT_INCLUSION_CONFIG_INSTALL_DIR}
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/tight_inclusionConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/tight_inclusionConfigVersion.cmake"
+    DESTINATION ${TIGHT_INCLUSION_CONFIG_INSTALL_DIR}
+)
