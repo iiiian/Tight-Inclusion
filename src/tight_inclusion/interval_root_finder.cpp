@@ -382,8 +382,7 @@ namespace ticcd {
         NumCCD TOI(4, 0);
         // this is to record the element that already small enough or contained in eps-box
         NumCCD TOI_SKIP = TOI;
-        bool use_skip = false; // this is to record if TOI_SKIP is used.
-        int rnbr = 0;
+        bool use_skip = false;  // this is to record if TOI_SKIP is used.
         int current_level = -2; // in the begining, current_level != level
         int box_in_level = -2;  // this checks if all the boxes before this
         // level < tolerance. only true, we can return when we find one overlaps eps box and smaller than tolerance or eps-box
@@ -464,7 +463,6 @@ namespace ticcd {
             bool condition3 = this_level_less_tol;
             if (condition1 || condition2 || condition3) {
                 TOI = current[0].lower;
-                rnbr++;
                 // continue;
                 toi = TOI.value() * impact_ratio;
                 // we don't need to compare with TOI_SKIP because we already
@@ -485,7 +483,6 @@ namespace ticcd {
                 if (!find_level_root) {
                     TOI = current[0].lower;
                     // collision=true;
-                    rnbr++;
                     // continue;
                     temp_toi = TOI.value() * impact_ratio;
 
