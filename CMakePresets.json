@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+      }
+    },
+    {
+      "name": "benchmark",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/benchmark",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TIGHT_INCLUSION_WITH_SAMPLE_QUERIES": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+      }
+    },
+    {
+      "name": "profile",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/profile",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS": "-O3",
+        "TIGHT_INCLUSION_WITH_SAMPLE_QUERIES": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+      }
+    }
+  ]
+}
