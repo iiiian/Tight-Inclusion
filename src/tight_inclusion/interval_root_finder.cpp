@@ -344,16 +344,11 @@ namespace ticcd {
 
         // this is used to catch the tolerance for each level
         Scalar temp_output_tolerance = co_domain_tolerance;
-        // return time1 >= time2
-        // auto time_cmp = [](const std::pair<Interval3, int> &i1,
-        //                    const std::pair<Interval3, int> &i2) {
-        //     return i1.first[0].lower >= i2.first[0].lower;
-        // };
 
         // check the tree level by level instead of going deep
         // (if level 1 != level 2, return level 1 >= level 2; else, return time1 >= time2)
-        auto horiz_cmp = [](const std::pair<Interval3, int> &i1,
-                            const std::pair<Interval3, int> &i2) {
+        auto cmp = [](const std::pair<Interval3, int> &i1,
+                      const std::pair<Interval3, int> &i2) {
             if (i1.second != i2.second) {
                 return i1.second >= i2.second;
             } else {
@@ -361,9 +356,8 @@ namespace ticcd {
             }
         };
 
-        // Stack of intervals and the last split dimension
-        // std::stack<std::pair<Interval3,int>> istack;
-        const auto &cmp = horiz_cmp;
+        // Stack of intervals and the last split dimension.
+        // Sorted by interval level first then by toi lower bound.
         std::priority_queue<
             std::pair<Interval3, int>, std::vector<std::pair<Interval3, int>>,
             decltype(cmp)>
