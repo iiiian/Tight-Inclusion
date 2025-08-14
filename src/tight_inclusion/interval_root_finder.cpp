@@ -383,7 +383,6 @@ namespace ticcd {
         // level < tolerance. only true, we can return when we find one overlaps eps box and smaller than tolerance or eps-box
         bool this_level_less_tol = true;
         bool find_level_root = false;
-        Scalar t_upper_bound = max_time; // 2*tol make it more conservative
         while (!istack.empty()) {
 #ifdef TIGHT_INCLUSION_CHECK_QUEUE_SIZE
             if (istack.size() > queue_size) {
@@ -508,7 +507,7 @@ namespace ticcd {
             bool overflow = split_and_push(
                 current, split_i,
                 [&](const Interval3 &i) { istack.emplace(i, level + 1); },
-                is_vertex_face, t_upper_bound);
+                is_vertex_face, max_time);
             if (overflow) {
                 logger().error("overflow occured when splitting intervals!");
                 return true;
