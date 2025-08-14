@@ -383,7 +383,6 @@ namespace ticcd {
         NumCCD TOI_SKIP = TOI;
         bool use_skip = false;  // this is to record if TOI_SKIP is used.
         int current_level = -2; // in the begining, current_level != level
-        int box_in_level = -2;  // this checks if all the boxes before this
         // level < tolerance. only true, we can return when we find one overlaps eps box and smaller than tolerance or eps-box
         bool this_level_less_tol = true;
         bool find_level_root = false;
@@ -410,9 +409,10 @@ namespace ticcd {
                 continue;
             }
             // before check a new level, set this_level_less_tol=true
-            if (box_in_level != level) {
-                box_in_level = level;
+            if (current_level != level) {
+                current_level = level;
                 this_level_less_tol = true;
+                find_level_root = false;
             }
 
             refine++;
@@ -470,12 +470,6 @@ namespace ticcd {
             }
 
             if (max_itr > 0) { // if max_itr <= 0 ⟹ unlimited iterations
-                if (current_level != level) {
-                    // output_tolerance=current_tolerance;
-                    // current_tolerance=0;
-                    current_level = level;
-                    find_level_root = false;
-                }
                 // current_tolerance=std::max(
                 // std::max(std::max(current_tolerance,true_tol[0]),true_tol[1]),true_tol[2]
                 // );
