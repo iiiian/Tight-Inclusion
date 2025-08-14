@@ -440,29 +440,18 @@ namespace ticcd {
 
             bool tol_condition = (true_tol <= co_domain_tolerance).all();
 
-            // Condition 1, stopping condition on t, u and v is satisfied. this is useless now since we have condition 2
-            bool condition1 = (widths <= tol).all();
-
-            // Condition 2, zero_in = true, box inside eps-box and in this level,
-            // no box whose zero_in is true but box size larger than tolerance, can return
-            bool condition2 = box_in && this_level_less_tol;
-            if (!tol_condition) {
-                this_level_less_tol = false;
-                // this level has at least one box whose size > tolerance, thus we
-                // cannot directly return if find one box whose size < tolerance or box-in
-                // TODO: think about it. maybe we can return even if this value is false, so we can terminate earlier.
+            // terminate early if following condition is true:
+            // a. no previous interval with smaller toi contains the root box
+            // b. current interval is small enough to pass tolerance test
+            bool is_interval_small_enough = tol_condition || box_in;
+            if (this_level_less_tol && is_interval_small_enough) {
+                TOI = current[0].lower;
+                toi = TOI.value();
+                return true;
             }
 
-            // Condition 3, in this level, we find a box that zero-in and size < tolerance.
-            // and no other boxes whose zero-in is true in this level before this one is larger than tolerance, can return
-            bool condition3 = this_level_less_tol;
-            if (condition1 || condition2 || condition3) {
-                TOI = current[0].lower;
-                // continue;
-                toi = TOI.value();
-                // we don't need to compare with TOI_SKIP because we already
-                // continue when t >= TOI_SKIP
-                return true;
+            if (!tol_condition) {
+                this_level_less_tol = false;
             }
 
             if (max_itr > 0) { // if max_itr <= 0 ⟹ unlimited iterations
@@ -493,7 +482,7 @@ namespace ticcd {
 
             // if this box is small enough, or inside of eps-box, then just continue,
             // but we need to record the collision time
-            if (tol_condition || box_in) {
+            if (is_interval_small_enough) {
                 if (current[0].lower < TOI_SKIP) {
                     TOI_SKIP = current[0].lower;
                 }
