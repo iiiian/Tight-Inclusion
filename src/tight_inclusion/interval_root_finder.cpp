@@ -373,7 +373,6 @@ namespace ticcd {
         // current intervals
         Interval3 current;
         int refine = 0;
-        Scalar impact_ratio = 1;
 
         toi = std::numeric_limits<Scalar>::infinity(); //set toi as infinate
         // temp_toi is to catch the toi of each level
@@ -464,7 +463,7 @@ namespace ticcd {
             if (condition1 || condition2 || condition3) {
                 TOI = current[0].lower;
                 // continue;
-                toi = TOI.value() * impact_ratio;
+                toi = TOI.value();
                 // we don't need to compare with TOI_SKIP because we already
                 // continue when t >= TOI_SKIP
                 return true;
@@ -484,7 +483,7 @@ namespace ticcd {
                     TOI = current[0].lower;
                     // collision=true;
                     // continue;
-                    temp_toi = TOI.value() * impact_ratio;
+                    temp_toi = TOI.value();
 
                     // if the real tolerance is larger than input, use the real one;
                     // if the real tolerance is smaller than input, use input
@@ -527,7 +526,7 @@ namespace ticcd {
         }
 
         if (use_skip) {
-            toi = TOI_SKIP.value() * impact_ratio;
+            toi = TOI_SKIP.value();
             return true;
         }
 
