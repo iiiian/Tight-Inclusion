@@ -374,9 +374,6 @@ namespace ticcd {
         Interval3 current;
         int refine = 0;
 
-        toi = std::numeric_limits<Scalar>::infinity(); //set toi as infinate
-        // temp_toi is to catch the toi of each level
-        Scalar temp_toi = toi;
         // set TOI to 4. this is to record the impact time of this level
         NumCCD TOI(4, 0);
         // this is to record the element that already small enough or contained in eps-box
@@ -477,7 +474,6 @@ namespace ticcd {
                     TOI = current[0].lower;
                     // collision=true;
                     // continue;
-                    temp_toi = TOI.value();
 
                     // if the real tolerance is larger than input, use the real one;
                     // if the real tolerance is smaller than input, use input
@@ -488,7 +484,7 @@ namespace ticcd {
                     find_level_root = true;
                 }
                 if (refine > max_itr) {
-                    toi = temp_toi;
+                    toi = TOI.value();
                     output_tolerance = temp_output_tolerance;
 
                     return true;
@@ -524,6 +520,7 @@ namespace ticcd {
             return true;
         }
 
+        toi = std::numeric_limits<Scalar>::infinity(); //set toi as infinity
         return false;
     }
 
