@@ -237,3 +237,9 @@ paper/
 TightInclusionOptions.cmake
 src/tight_inclusion/config.hpp
 app/config.hpp
+flamegraph.html
+original.txt
+perf.data
+refactor.txt
+vec_stack.txt
+perf.data.old
