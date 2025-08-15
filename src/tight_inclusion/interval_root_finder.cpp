@@ -7,6 +7,8 @@
 #include <tight_inclusion/logger.hpp>
 
 #include <queue>
+#include <vector>
+#include <algorithm>
 
 namespace ticcd {
     double time_predicates = 0, time_width = 0, time_bisect = 0,
@@ -330,25 +332,10 @@ namespace ticcd {
         // this is used to catch the tolerance for each level
         Scalar temp_output_tolerance = co_domain_tolerance;
 
-        // check the tree level by level instead of going deep
-        // (if level 1 != level 2, return level 1 >= level 2; else, return time1 >= time2)
-        auto cmp = [](const std::pair<Interval3, int> &i1,
-                      const std::pair<Interval3, int> &i2) {
-            if (i1.second != i2.second) {
-                return i1.second >= i2.second;
-            } else {
-                return i1.first[0].lower > i2.first[0].lower;
-            }
-        };
-
         // Stack of intervals and the last split dimension.
         // Sorted by interval level first then by toi lower bound.
-
-        std::priority_queue<
-            std::pair<Interval3, int>, std::vector<std::pair<Interval3, int>>,
-            decltype(cmp)>
-            istack(cmp);
-        istack.emplace(iset, -1);
+        std::vector<std::pair<Interval3, int>> istack;
+        istack.emplace_back(iset, -1);
 
         // current intervals
         Interval3 current;
@@ -363,7 +350,9 @@ namespace ticcd {
         // level < tolerance. only true, we can return when we find one overlaps eps box and smaller than tolerance or eps-box
         bool this_level_less_tol = true;
         bool find_level_root = false;
-        while (!istack.empty()) {
+        int current_level_stack_end = 1;
+        int stack_idx;
+        for (stack_idx = 0; stack_idx < istack.size(); ++stack_idx) {
 #ifdef TIGHT_INCLUSION_CHECK_QUEUE_SIZE
             if (istack.size() > queue_size) {
                 queue_size = istack.size();
@@ -375,9 +364,18 @@ namespace ticcd {
             }
 #endif
 
-            current = istack.top().first;
-            int level = istack.top().second;
-            istack.pop();
+            if (stack_idx == current_level_stack_end) {
+                auto cmp = [](const std::pair<Interval3, int> &i1,
+                              const std::pair<Interval3, int> &i2) {
+                    return i1.first[0].lower < i2.first[0].lower;
+                };
+                std::sort(
+                    istack.data() + stack_idx, istack.data() + istack.size(),
+                    cmp);
+            }
+
+            current = istack[stack_idx].first;
+            int level = istack[stack_idx].second;
 
             // if this box is later than TOI_SKIP in time, we can skip this one.
             // TOI_SKIP is only updated when the box is small enough or totally contained in eps-box
@@ -427,6 +425,7 @@ namespace ticcd {
             if (this_level_less_tol && is_interval_small_enough) {
                 TOI = current[0].lower;
                 toi = TOI.value();
+                // logger().debug("max stack {}", stack_idx);
                 return true;
             }
 
@@ -455,6 +454,7 @@ namespace ticcd {
                     toi = TOI.value();
                     output_tolerance = temp_output_tolerance;
 
+                    // logger().debug("max stack {}", stack_idx);
                     return true;
                 }
                 // get the time of impact down here
@@ -475,20 +475,23 @@ namespace ticcd {
 
             bool overflow = split_and_push(
                 current, split_i,
-                [&](const Interval3 &i) { istack.emplace(i, level + 1); },
+                [&](const Interval3 &i) { istack.emplace_back(i, level + 1); },
                 is_vertex_face, max_time);
             if (overflow) {
                 logger().error("overflow occured when splitting intervals!");
+                // logger().debug("max stack {}", stack_idx);
                 return true;
             }
         }
 
         if (use_skip) {
             toi = TOI_SKIP.value();
+            // logger().debug("max stack {}", stack_idx);
             return true;
         }
 
         toi = std::numeric_limits<Scalar>::infinity(); //set toi as infinity
+        // logger().debug("max stack {}", stack_idx);
         return false;
     }
 
