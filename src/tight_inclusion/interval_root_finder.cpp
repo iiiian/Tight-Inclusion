@@ -15,13 +15,96 @@ namespace ticcd {
            time_eval_origin_1D = 0, time_eval_origin_tuv = 0,
            time_vertex_solving = 0;
 
+    template <bool is_vertex_face>
+    bool eval_unit_bbox_1d(
+        const Vector3 &a_t0,
+        const Vector3 &b_t0,
+        const Vector3 &c_t0,
+        const Vector3 &d_t0,
+        const Vector3 &a_t1,
+        const Vector3 &b_t1,
+        const Vector3 &c_t1,
+        const Vector3 &d_t1,
+        const int dim,
+        const Scalar eps,
+        bool &bbox_in_eps,
+        const Scalar ms = 0,
+        Scalar *tol = nullptr)
+    {
+        Scalar minv;
+        Scalar maxv;
+        if constexpr (is_vertex_face) {
+            Array6 A;
+            A(0) = a_t0(dim);
+            A(1) = a_t0(dim);
+            A(2) = a_t0(dim);
+            A(3) = a_t1(dim);
+            A(4) = a_t1(dim);
+            A(5) = a_t1(dim);
+
+            Array6 B;
+            B(0) = b_t0(dim);
+            B(1) = c_t0(dim);
+            B(2) = d_t0(dim);
+            B(3) = b_t1(dim);
+            B(4) = c_t1(dim);
+            B(5) = d_t1(dim);
+
+            const Array6 D = A - B;
+            minv = D.minCoeff();
+            maxv = D.maxCoeff();
+        } else {
+            Array8 A;
+            A(0) = a_t0(dim);
+            A(1) = a_t0(dim);
+            A(2) = b_t0(dim);
+            A(3) = b_t0(dim);
+            A(4) = a_t1(dim);
+            A(5) = a_t1(dim);
+            A(6) = b_t1(dim);
+            A(7) = b_t1(dim);
+
+            Array8 B;
+            B(0) = c_t0(dim);
+            B(1) = d_t0(dim);
+            B(2) = c_t0(dim);
+            B(3) = d_t0(dim);
+            B(4) = c_t1(dim);
+            B(5) = d_t1(dim);
+            B(6) = c_t1(dim);
+            B(7) = d_t1(dim);
+
+            const Array8 D = A - B;
+            minv = D.minCoeff();
+            maxv = D.maxCoeff();
+        }
+
+        if (tol != nullptr) {
+            *tol = maxv - minv; // this is the real tolerance
+        }
+
+        bbox_in_eps = false;
+
+        const Scalar eps_and_ms = eps + ms;
+
+        if (minv > eps_and_ms || maxv < -eps_and_ms) {
+            return false;
+        }
+
+        if (minv >= -eps_and_ms && maxv <= eps_and_ms) {
+            bbox_in_eps = true;
+        }
+
+        return true;
+    }
+
     // ** this version can return the true x or y or z tolerance of the co-domain **
     // eps is the interval [-eps,eps] we need to check
     // if [-eps,eps] overlap, return true
     // bbox_in_eps tell us if the box is totally in eps box
     // ms is the minimum seperation
     template <bool is_vertex_face>
-    bool evaluate_bbox_one_dimension_vector(
+    bool eval_bbox_1d(
         Array8 &t_up,
         Array8 &t_dw,
         Array8 &u_up,
@@ -83,7 +166,7 @@ namespace ticcd {
     // give the result of if the hex overlaps the input eps box around origin
     // use vectorized hex-vertex-solving function for acceleration
     // box_in_eps shows if this hex is totally inside box. if so, no need to do further bisection
-    template <bool is_vertex_face>
+    template <bool is_vertex_face, bool is_unit_tuv>
     bool origin_in_function_bounding_box_vector(
         const Interval3 &paras,
         const Vector3 &a_t0,
@@ -100,26 +183,40 @@ namespace ticcd {
         Array3 *tolerance = nullptr)
     {
         box_in_eps = false;
-
-        Array8 t_up, t_dw, u_up, u_dw, v_up, v_dw;
-        {
-            TIGHT_INCLUSION_SCOPED_TIMER(time_eval_origin_tuv);
-            convert_tuv_to_array(paras, t_up, t_dw, u_up, u_dw, v_up, v_dw);
-        }
-
         bool box_in[3];
-        for (int i = 0; i < 3; i++) {
-            TIGHT_INCLUSION_SCOPED_TIMER(time_eval_origin_1D);
-            Scalar *tol = tolerance == nullptr ? nullptr : &((*tolerance)[i]);
-            if (!evaluate_bbox_one_dimension_vector<is_vertex_face>(
-                    t_up, t_dw, u_up, u_dw, v_up, v_dw, a_t0, b_t0, c_t0, d_t0,
-                    a_t1, b_t1, c_t1, d_t1, i, eps[i], box_in[i], ms, tol)) {
-                return false;
-            }
-        }
 
-        if (box_in[0] && box_in[1] && box_in[2]) {
-            box_in_eps = true;
+        if constexpr (is_unit_tuv) {
+            for (int i = 0; i < 3; i++) {
+                Scalar *tol =
+                    tolerance == nullptr ? nullptr : &((*tolerance)[i]);
+                if (!eval_unit_bbox_1d<is_vertex_face>(
+                        a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, i, eps[i], box_in[i], ms,
+                        tol)) {
+                    return false;
+                }
+            }
+
+            if (box_in[0] && box_in[1] && box_in[2]) {
+                box_in_eps = true;
+            }
+        } else {
+            Array8 t_up, t_dw, u_up, u_dw, v_up, v_dw;
+            convert_tuv_to_array(paras, t_up, t_dw, u_up, u_dw, v_up, v_dw);
+
+            for (int i = 0; i < 3; i++) {
+                Scalar *tol =
+                    tolerance == nullptr ? nullptr : &((*tolerance)[i]);
+                if (!eval_bbox_1d<is_vertex_face>(
+                        t_up, t_dw, u_up, u_dw, v_up, v_dw, a_t0, b_t0, c_t0,
+                        d_t0, a_t1, b_t1, c_t1, d_t1, i, eps[i], box_in[i], ms,
+                        tol)) {
+                    return false;
+                }
+            }
+
+            if (box_in[0] && box_in[1] && box_in[2]) {
+                box_in_eps = true;
+            }
         }
 
         return true;
@@ -257,10 +354,10 @@ namespace ticcd {
             bool zero_in, box_in;
             {
                 TIGHT_INCLUSION_SCOPED_TIMER(time_predicates);
-                zero_in =
-                    origin_in_function_bounding_box_vector<is_vertex_face>(
-                        current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                        err_and_ms, box_in);
+                zero_in = origin_in_function_bounding_box_vector<
+                    is_vertex_face, false>(
+                    current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
+                    err_and_ms, box_in);
             }
 
             // #ifdef TIGHT_INCLUSION_WITH_RATIONAL // this is defined in the begining of this file
@@ -321,6 +418,7 @@ namespace ticcd {
         const Scalar ms,
         const Scalar max_time,
         const long max_itr,
+        bool is_unit_interval,
         Scalar &toi,
         Scalar &output_tolerance)
     {
@@ -392,19 +490,18 @@ namespace ticcd {
             refine++;
             bool zero_in, box_in;
             Array3 true_tol;
-            {
-                TIGHT_INCLUSION_SCOPED_TIMER(time_predicates);
-                // #ifdef TIGHT_INCLUSION_WITH_RATIONAL // this is defined in the begining of this file
-                // Array3 ms_3d = Array3::Constant(ms);
-                // zero_in = origin_in_function_bounding_box_rational_return_tolerance<is_vertex_face>(
-                //     current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                //     ms_3d, box_in, true_tol);
-                // #else
-                zero_in =
-                    origin_in_function_bounding_box_vector<is_vertex_face>(
-                        current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                        err, box_in, ms, &true_tol);
-                // #endif
+            if (is_unit_interval) {
+                zero_in = origin_in_function_bounding_box_vector<
+                    is_vertex_face, true>(
+                    current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
+                    err, box_in, ms, &true_tol);
+                is_unit_interval = false;
+            } else {
+
+                zero_in = origin_in_function_bounding_box_vector<
+                    is_vertex_face, false>(
+                    current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
+                    err, box_in, ms, &true_tol);
             }
 
             if (!zero_in)
@@ -525,7 +622,7 @@ namespace ticcd {
 
         return interval_root_finder_BFS<is_vertex_face>(
             a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, iset, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, toi,
+            co_domain_tolerance, err, ms, max_time, max_itr, true, toi,
             output_tolerance);
     }
 
