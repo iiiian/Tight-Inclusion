@@ -1,5 +1,6 @@
 // A root finder using interval arithmetic.
 #include "interval_root_finder.hpp"
+#include "types.hpp"
 
 #include <tight_inclusion/timer.hpp>
 #include <tight_inclusion/avx.hpp>
@@ -12,22 +13,6 @@ namespace ticcd {
            time_eval_origin_1D = 0, time_eval_origin_tuv = 0,
            time_vertex_solving = 0;
 
-    template <typename T, int N>
-    inline void min_max_array(const std::array<T, N> &arr, T &min, T &max)
-    {
-        static_assert(N > 0, "no min/max of empty array");
-        min = arr[0];
-        max = arr[0];
-        for (int i = 1; i < N; i++) {
-            if (min > arr[i]) {
-                min = arr[i];
-            }
-            if (max < arr[i]) {
-                max = arr[i];
-            }
-        }
-    }
-
     // ** this version can return the true x or y or z tolerance of the co-domain **
     // eps is the interval [-eps,eps] we need to check
     // if [-eps,eps] overlap, return true
@@ -35,12 +20,12 @@ namespace ticcd {
     // ms is the minimum seperation
     template <bool is_vertex_face>
     bool evaluate_bbox_one_dimension_vector(
-        std::array<Scalar, 8> &t_up,
-        std::array<Scalar, 8> &t_dw,
-        std::array<Scalar, 8> &u_up,
-        std::array<Scalar, 8> &u_dw,
-        std::array<Scalar, 8> &v_up,
-        std::array<Scalar, 8> &v_dw,
+        Array8 &t_up,
+        Array8 &t_dw,
+        Array8 &u_up,
+        Array8 &u_dw,
+        Array8 &v_up,
+        Array8 &v_dw,
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -57,7 +42,7 @@ namespace ticcd {
     {
         TIGHT_INCLUSION_SCOPED_TIMER(time_vertex_solving);
 
-        std::array<Scalar, 8> vs;
+        Array8 vs;
         if constexpr (is_vertex_face) {
             vs = function_vf(
                 a_t0[dim], b_t0[dim], c_t0[dim], d_t0[dim], a_t1[dim],
@@ -70,8 +55,8 @@ namespace ticcd {
                 v_dw);
         }
 
-        Scalar minv, maxv;
-        min_max_array<Scalar, 8>(vs, minv, maxv);
+        Scalar minv = vs.minCoeff();
+        Scalar maxv = vs.maxCoeff();
 
         if (tol != nullptr) {
             *tol = maxv - minv; // this is the real tolerance
@@ -114,7 +99,7 @@ namespace ticcd {
     {
         box_in_eps = false;
 
-        std::array<Scalar, 8> t_up, t_dw, u_up, u_dw, v_up, v_dw;
+        Array8 t_up, t_dw, u_up, u_dw, v_up, v_dw;
         {
             TIGHT_INCLUSION_SCOPED_TIMER(time_eval_origin_tuv);
             convert_tuv_to_array(paras, t_up, t_dw, u_up, u_dw, v_up, v_dw);
@@ -358,6 +343,7 @@ namespace ticcd {
 
         // Stack of intervals and the last split dimension.
         // Sorted by interval level first then by toi lower bound.
+
         std::priority_queue<
             std::pair<Interval3, int>, std::vector<std::pair<Interval3, int>>,
             decltype(cmp)>

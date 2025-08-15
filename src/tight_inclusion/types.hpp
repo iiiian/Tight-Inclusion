@@ -12,4 +12,5 @@ namespace ticcd {
 #endif
     typedef Eigen::Matrix<Scalar, 3, 1> Vector3;
     typedef Eigen::Array<Scalar, 3, 1> Array3;
+    typedef Eigen::Array<Scalar, 8, 1> Array8;
 } // namespace ticcd
