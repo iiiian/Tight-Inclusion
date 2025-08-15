@@ -1,6 +1,7 @@
 // A root finder using interval arithmetic.
 #include "interval_root_finder.hpp"
 #include "types.hpp"
+#include <optional>
 
 #include <tight_inclusion/timer.hpp>
 #include <tight_inclusion/avx.hpp>
@@ -11,10 +12,6 @@
 #include <algorithm>
 
 namespace ticcd {
-    double time_predicates = 0, time_width = 0, time_bisect = 0,
-           time_eval_origin_1D = 0, time_eval_origin_tuv = 0,
-           time_vertex_solving = 0;
-
     template <bool is_vertex_face>
     bool eval_unit_bbox_1d(
         const Vector3 &a_t0,
@@ -25,11 +22,11 @@ namespace ticcd {
         const Vector3 &b_t1,
         const Vector3 &c_t1,
         const Vector3 &d_t1,
-        const int dim,
-        const Scalar eps,
+        Scalar eps,
+        Scalar ms,
+        int dim,
         bool &bbox_in_eps,
-        const Scalar ms = 0,
-        Scalar *tol = nullptr)
+        Scalar &tol)
     {
         Scalar minv;
         Scalar maxv;
@@ -79,12 +76,8 @@ namespace ticcd {
             maxv = D.maxCoeff();
         }
 
-        if (tol != nullptr) {
-            *tol = maxv - minv; // this is the real tolerance
-        }
-
+        tol = maxv - minv; // this is the real tolerance
         bbox_in_eps = false;
-
         const Scalar eps_and_ms = eps + ms;
 
         if (minv > eps_and_ms || maxv < -eps_and_ms) {
@@ -119,36 +112,30 @@ namespace ticcd {
         const Vector3 &b_t1,
         const Vector3 &c_t1,
         const Vector3 &d_t1,
-        const int dim,
-        const Scalar eps,
+        Scalar eps,
+        Scalar ms,
+        int dim,
         bool &bbox_in_eps,
-        const Scalar ms = 0,
-        Scalar *tol = nullptr)
+        Scalar &tol)
     {
-        TIGHT_INCLUSION_SCOPED_TIMER(time_vertex_solving);
-
         Array8 vs;
         if constexpr (is_vertex_face) {
             vs = function_vf(
-                a_t0[dim], b_t0[dim], c_t0[dim], d_t0[dim], a_t1[dim],
-                b_t1[dim], c_t1[dim], d_t1[dim], t_up, t_dw, u_up, u_dw, v_up,
+                a_t0(dim), b_t0(dim), c_t0(dim), d_t0(dim), a_t1(dim),
+                b_t1(dim), c_t1(dim), d_t1(dim), t_up, t_dw, u_up, u_dw, v_up,
                 v_dw);
         } else {
             vs = function_ee(
-                a_t0[dim], b_t0[dim], c_t0[dim], d_t0[dim], a_t1[dim],
-                b_t1[dim], c_t1[dim], d_t1[dim], t_up, t_dw, u_up, u_dw, v_up,
+                a_t0(dim), b_t0(dim), c_t0(dim), d_t0(dim), a_t1(dim),
+                b_t1(dim), c_t1(dim), d_t1(dim), t_up, t_dw, u_up, u_dw, v_up,
                 v_dw);
         }
 
         Scalar minv = vs.minCoeff();
         Scalar maxv = vs.maxCoeff();
 
-        if (tol != nullptr) {
-            *tol = maxv - minv; // this is the real tolerance
-        }
-
+        tol = maxv - minv; // this is the real tolerance
         bbox_in_eps = false;
-
         const Scalar eps_and_ms = eps + ms;
 
         if (minv > eps_and_ms || maxv < -eps_and_ms) {
@@ -167,8 +154,8 @@ namespace ticcd {
     // use vectorized hex-vertex-solving function for acceleration
     // box_in_eps shows if this hex is totally inside box. if so, no need to do further bisection
     template <bool is_vertex_face, bool is_unit_tuv>
-    bool origin_in_function_bounding_box_vector(
-        const Interval3 &paras,
+    bool origin_in_bbox_eval(
+        const Interval3 &tuv,
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -178,54 +165,42 @@ namespace ticcd {
         const Vector3 &c_t1,
         const Vector3 &d_t1,
         const Array3 &eps,
-        bool &box_in_eps,
-        const Scalar ms = 0,
-        Array3 *tolerance = nullptr)
+        Scalar ms,
+        bool &bbox_in_eps,
+        Array3 &tolerance)
     {
-        box_in_eps = false;
-        bool box_in[3];
-
+        bool xyz_bbox_in_eps[3];
         if constexpr (is_unit_tuv) {
-            for (int i = 0; i < 3; i++) {
-                Scalar *tol =
-                    tolerance == nullptr ? nullptr : &((*tolerance)[i]);
+            for (int dim = 0; dim < 3; dim++) {
                 if (!eval_unit_bbox_1d<is_vertex_face>(
-                        a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, i, eps[i], box_in[i], ms,
-                        tol)) {
+                        a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
+                        eps(dim), ms, dim, xyz_bbox_in_eps[dim],
+                        tolerance(dim))) {
                     return false;
                 }
-            }
-
-            if (box_in[0] && box_in[1] && box_in[2]) {
-                box_in_eps = true;
             }
         } else {
             Array8 t_up, t_dw, u_up, u_dw, v_up, v_dw;
-            convert_tuv_to_array(paras, t_up, t_dw, u_up, u_dw, v_up, v_dw);
+            convert_tuv_to_array(tuv, t_up, t_dw, u_up, u_dw, v_up, v_dw);
 
-            for (int i = 0; i < 3; i++) {
-                Scalar *tol =
-                    tolerance == nullptr ? nullptr : &((*tolerance)[i]);
+            for (int dim = 0; dim < 3; dim++) {
                 if (!eval_bbox_1d<is_vertex_face>(
                         t_up, t_dw, u_up, u_dw, v_up, v_dw, a_t0, b_t0, c_t0,
-                        d_t0, a_t1, b_t1, c_t1, d_t1, i, eps[i], box_in[i], ms,
-                        tol)) {
+                        d_t0, a_t1, b_t1, c_t1, d_t1, eps(dim), ms, dim,
+                        xyz_bbox_in_eps[dim], tolerance(dim))) {
                     return false;
                 }
             }
-
-            if (box_in[0] && box_in[1] && box_in[2]) {
-                box_in_eps = true;
-            }
         }
 
+        bbox_in_eps =
+            xyz_bbox_in_eps[0] && xyz_bbox_in_eps[1] && xyz_bbox_in_eps[2];
         return true;
     }
 
     // find the largest width/tol dimension that is greater than its tolerance
     int find_next_split(const Array3 &widths, const Array3 &tols)
     {
-        // assert((widths > tols).any());
         Array3 tmp =
             (widths > tols)
                 .select(
@@ -316,20 +291,19 @@ namespace ticcd {
             return i1[0].lower >= i2[0].lower;
         };
 
-        //build interval set [0,1]x[0,1]x[0,1]
+        // build interval set [0,1]x[0,1]x[0,1]
         const Interval zero_to_one = Interval(NumCCD(0, 0), NumCCD(1, 0));
         Interval3 iset = {{zero_to_one, zero_to_one, zero_to_one}};
 
         // Stack of intervals and the last split dimension
-        // std::stack<std::pair<Interval3,int>> istack;
         std::priority_queue<
             Interval3, std::vector<Interval3>, decltype(cmp_time)>
             istack(cmp_time);
-        istack.emplace(iset);
+        istack.push(std::move(iset));
 
         Array3 err_and_ms = err + ms;
 
-        int refine = 0;
+        int refine = 0; // interval split count. aka tree depth
 
         toi = std::numeric_limits<Scalar>::infinity();
         NumCCD TOI(1, 0);
@@ -352,12 +326,12 @@ namespace ticcd {
             refine++;
 
             bool zero_in, box_in;
+            Array3 tol_placeholder;
             {
                 TIGHT_INCLUSION_SCOPED_TIMER(time_predicates);
-                zero_in = origin_in_function_bounding_box_vector<
-                    is_vertex_face, false>(
+                zero_in = origin_in_bbox_eval<is_vertex_face, false>(
                     current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                    err_and_ms, box_in);
+                    err, ms, box_in, tol_placeholder);
             }
 
             // #ifdef TIGHT_INCLUSION_WITH_RATIONAL // this is defined in the begining of this file
@@ -400,7 +374,8 @@ namespace ticcd {
         return collision;
     }
 
-    // when check_t_overlap = false, check [0,1]x[0,1]x[0,1]; otherwise, check [0, t_max]x[0,1]x[0,1]
+    NumCCD get_toi(const Interval3 &tuv) { return tuv[0].lower; }
+
     template <bool is_vertex_face>
     bool interval_root_finder_BFS(
         const Vector3 &a_t0,
@@ -413,56 +388,34 @@ namespace ticcd {
         const Vector3 &d_t1,
         const Interval3 &iset,
         const Array3 &tol,
-        const Scalar co_domain_tolerance,
+        Scalar co_domain_tolerance,
         const Array3 &err,
-        const Scalar ms,
-        const Scalar max_time,
-        const long max_itr,
+        Scalar ms,
+        Scalar max_time,
+        long max_iter,
         bool is_unit_interval,
         Scalar &toi,
         Scalar &output_tolerance)
     {
-        long queue_size = 0;
-        // if max_itr <0, output_tolerance= co_domain_tolerance;
-        // else, output_tolearancewill be the precision after iteration time > max_itr
-        output_tolerance = co_domain_tolerance;
-
-        // this is used to catch the tolerance for each level
-        Scalar temp_output_tolerance = co_domain_tolerance;
-
-        // Stack of intervals and the last split dimension.
-        // Sorted by interval level first then by toi lower bound.
+        // stack of (interval, tree level) pair.
+        // will be sorted by level first then toi lower bound second
         std::vector<std::pair<Interval3, int>> istack;
-        istack.emplace_back(iset, -1);
+        istack.emplace_back(iset, 0);
 
-        // current intervals
-        Interval3 current;
-        int refine = 0;
+        int iter_count = 0;
+        int tree_level = 0;
 
-        // set TOI to 4. this is to record the impact time of this level
-        NumCCD TOI(4, 0);
-        // this is to record the element that already small enough or contained in eps-box
-        NumCCD TOI_SKIP = TOI;
-        bool use_skip = false;  // this is to record if TOI_SKIP is used.
-        int current_level = -2; // in the begining, current_level != level
-        // level < tolerance. only true, we can return when we find one overlaps eps box and smaller than tolerance or eps-box
-        bool this_level_less_tol = true;
-        bool find_level_root = false;
-        int current_level_stack_end = 1;
-        int stack_idx;
-        for (stack_idx = 0; stack_idx < istack.size(); ++stack_idx) {
-#ifdef TIGHT_INCLUSION_CHECK_QUEUE_SIZE
-            if (istack.size() > queue_size) {
-                queue_size = istack.size();
-            }
-#endif
-#ifdef TIGHT_INCLUSION_LIMIT_QUEUE_SIZE
-            if (istack.size() > MAX_QSIZE) {
-                return true;
-            }
-#endif
+        // a root interval and its corresponding toi might be skipped if an earlier root interval might exists
+        std::optional<Interval3> skipped_candidate;
 
-            if (stack_idx == current_level_stack_end) {
+        // the first root interval at each tree level is the earliest candidate
+        bool is_earliest_candidate = true;
+        Interval3 earliest_candidate;
+        Array3 earliest_bbox_eval_tolerance;
+
+        for (int stack_idx = 0; stack_idx < istack.size(); ++stack_idx) {
+            // reach new tree level
+            if (istack[stack_idx].second != tree_level) {
                 auto cmp = [](const std::pair<Interval3, int> &i1,
                               const std::pair<Interval3, int> &i2) {
                     return i1.first[0].lower < i2.first[0].lower;
@@ -470,125 +423,115 @@ namespace ticcd {
                 std::sort(
                     istack.data() + stack_idx, istack.data() + istack.size(),
                     cmp);
+
+                ++tree_level;
+                is_earliest_candidate = true;
             }
 
-            current = istack[stack_idx].first;
-            int level = istack[stack_idx].second;
+            // current intervals
+            Interval3 current = istack[stack_idx].first;
 
-            // if this box is later than TOI_SKIP in time, we can skip this one.
-            // TOI_SKIP is only updated when the box is small enough or totally contained in eps-box
-            if (current[0].lower >= TOI_SKIP) {
+            // if this box is later than skipped toi, skip.
+            if (skipped_candidate
+                && get_toi(current) >= get_toi(*skipped_candidate)) {
                 continue;
             }
-            // before check a new level, set this_level_less_tol=true
-            if (current_level != level) {
-                current_level = level;
-                this_level_less_tol = true;
-                find_level_root = false;
-            }
 
-            refine++;
-            bool zero_in, box_in;
-            Array3 true_tol;
+            iter_count++;
+
+            // true if bbox eval intersect function root region
+            bool bbox_in_zero;
+            // true if bbox eval is inside function root region
+            bool bbox_in_eps;
+            // the xyz width of bbox eval
+            Array3 bbox_eval_tolerance;
             if (is_unit_interval) {
-                zero_in = origin_in_function_bounding_box_vector<
-                    is_vertex_face, true>(
+                bbox_in_zero = origin_in_bbox_eval<is_vertex_face, true>(
                     current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                    err, box_in, ms, &true_tol);
+                    err, ms, bbox_in_eps, bbox_eval_tolerance);
                 is_unit_interval = false;
             } else {
-
-                zero_in = origin_in_function_bounding_box_vector<
-                    is_vertex_face, false>(
+                bbox_in_zero = origin_in_bbox_eval<is_vertex_face, false>(
                     current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                    err, box_in, ms, &true_tol);
+                    err, ms, bbox_in_eps, bbox_eval_tolerance);
             }
 
-            if (!zero_in)
+            // current interval does not contain function root. skip.
+            if (!bbox_in_zero) {
                 continue;
-
-            Array3 widths;
-            {
-                TIGHT_INCLUSION_SCOPED_TIMER(time_width);
-                widths = width(current);
             }
 
-            bool tol_condition = (true_tol <= co_domain_tolerance).all();
+            // current interval might contain function root.
+            // check if interval is small enough to avoid false positive.
 
-            // terminate early if following condition is true:
-            // a. no previous interval with smaller toi contains the root box
-            // b. current interval is small enough to pass tolerance test
-            bool is_interval_small_enough = tol_condition || box_in;
-            if (this_level_less_tol && is_interval_small_enough) {
-                TOI = current[0].lower;
-                toi = TOI.value();
-                // logger().debug("max stack {}", stack_idx);
+            bool is_co_domain_tol_small_enough =
+                (bbox_eval_tolerance <= co_domain_tolerance).all();
+            bool is_interval_small_enough =
+                is_co_domain_tol_small_enough || bbox_in_eps;
+
+            // earlist root interval that is small enough. terminate.
+            if (is_earliest_candidate && is_interval_small_enough) {
+                // return time interval lower bound as toi
+                toi = get_toi(current).value();
+                output_tolerance = co_domain_tolerance;
                 return true;
             }
 
-            if (!tol_condition) {
-                this_level_less_tol = false;
-            }
-
-            if (max_itr > 0) { // if max_itr <= 0 ⟹ unlimited iterations
-                // current_tolerance=std::max(
-                // std::max(std::max(current_tolerance,true_tol[0]),true_tol[1]),true_tol[2]
-                // );
-                if (!find_level_root) {
-                    TOI = current[0].lower;
-                    // collision=true;
-                    // continue;
-
-                    // if the real tolerance is larger than input, use the real one;
-                    // if the real tolerance is smaller than input, use input
-                    temp_output_tolerance = std::max(
-                        {true_tol[0], true_tol[1], true_tol[2],
-                         co_domain_tolerance});
-                    // this ensures always find the earlist root
-                    find_level_root = true;
-                }
-                if (refine > max_itr) {
-                    toi = TOI.value();
-                    output_tolerance = temp_output_tolerance;
-
-                    // logger().debug("max stack {}", stack_idx);
-                    return true;
-                }
-                // get the time of impact down here
-            }
-
-            // if this box is small enough, or inside of eps-box, then just continue,
-            // but we need to record the collision time
+            // root interval that is small enough but not the earliest,
+            // record then skip.
             if (is_interval_small_enough) {
-                if (current[0].lower < TOI_SKIP) {
-                    TOI_SKIP = current[0].lower;
+                if (skipped_candidate) {
+                    if (get_toi(*skipped_candidate) > get_toi(current)) {
+                        skipped_candidate = current;
+                    }
                 }
-                use_skip = true;
+                skipped_candidate = current;
                 continue;
+            }
+
+            // root interval that is not small enough but is the earliest,
+            // record if we have max_iter enabled.
+            if (is_earliest_candidate) {
+                is_earliest_candidate = false;
+
+                if (max_iter > 0) {
+                    earliest_candidate = current;
+                    earliest_bbox_eval_tolerance = bbox_eval_tolerance;
+                }
+            }
+
+            // max iter enabled and reach max iter. return earliest candidate and terminate.
+            if (max_iter > 0 && iter_count > max_iter) {
+                toi = get_toi(earliest_candidate).value();
+                output_tolerance = std::max(
+                    co_domain_tolerance,
+                    earliest_bbox_eval_tolerance.maxCoeff());
+                return true;
             }
 
             // find the next dimension to split
-            int split_i = find_next_split(widths, tol);
-
+            Array3 widths = width(current);
+            int split_dimension = find_next_split(widths, tol);
+            auto push = [&istack, &tree_level](const Interval3 &i) {
+                istack.emplace_back(i, tree_level + 1);
+            };
             bool overflow = split_and_push(
-                current, split_i,
-                [&](const Interval3 &i) { istack.emplace_back(i, level + 1); },
-                is_vertex_face, max_time);
+                current, split_dimension, push, is_vertex_face, max_time);
             if (overflow) {
                 logger().error("overflow occured when splitting intervals!");
-                // logger().debug("max stack {}", stack_idx);
                 return true;
             }
         }
 
-        if (use_skip) {
-            toi = TOI_SKIP.value();
-            // logger().debug("max stack {}", stack_idx);
+        if (skipped_candidate) {
+            toi = get_toi(*skipped_candidate).value();
+            output_tolerance = co_domain_tolerance;
             return true;
         }
 
-        toi = std::numeric_limits<Scalar>::infinity(); //set toi as infinity
-        // logger().debug("max stack {}", stack_idx);
+        // no collision, set toi and output_tolerance to infinity
+        toi = std::numeric_limits<Scalar>::infinity();
+        output_tolerance = std::numeric_limits<Scalar>::infinity();
         return false;
     }
 
@@ -624,21 +567,6 @@ namespace ticcd {
             a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, iset, tol,
             co_domain_tolerance, err, ms, max_time, max_itr, true, toi,
             output_tolerance);
-    }
-
-    void print_times()
-    {
-        logger().trace("[time] origin predicates, {}", time_predicates);
-        logger().trace("[time] width, {}", time_width);
-        logger().trace("[time] bisect, {}", time_bisect);
-        logger().trace(
-            "[time] origin part1(evaluate 1 dimension), {}",
-            time_eval_origin_1D);
-        logger().trace(
-            "[time] origin part2(convert tuv), {}", time_eval_origin_tuv);
-        logger().trace(
-            "[time] time of call the vertex solving function, {}",
-            time_vertex_solving);
     }
 
     Array3 get_numerical_error(
