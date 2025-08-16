@@ -122,6 +122,8 @@ namespace ticcd {
     /// @param[in] max_time The maximum time to check.
     /// @param[in] max_itr The maximum number of iterations.
     /// @param[out] toi The time of impact.
+    /// @param[out] u Edge or triangle parameter 1.
+    /// @param[out] v Edge or triangle parameter 2.
     /// @param[out] output_tolerance The resulting tolerance.
     /// @tparam is_vertex_face Whether to check vertex-face or edge-edge collision.
     /// @return True if there is a root (collision), false otherwise.
@@ -142,6 +144,8 @@ namespace ticcd {
         const Scalar max_time,
         const long max_itr,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         Scalar &output_tolerance);
 
     /// @brief Perform interval root finding for edge-edge CCD using BFS.
@@ -160,6 +164,8 @@ namespace ticcd {
     /// @param[in] max_time The maximum time to check.
     /// @param[in] max_itr The maximum number of iterations.
     /// @param[out] toi The time of impact.
+    /// @param[out] u Edge ab parameter at toi.
+    /// @param[out] v Edge cd parameter at toi.
     /// @param[out] output_tolerance The resulting tolerance.
     /// @return True if there is a root (collision), false otherwise.
     bool edge_edge_interval_root_finder_BFS(
@@ -196,6 +202,8 @@ namespace ticcd {
     /// @param[in] max_time The maximum time to check.
     /// @param[in] max_itr The maximum number of iterations.
     /// @param[out] toi The time of impact.
+    /// @param[out] u Triangle parameter at toi.
+    /// @param[out] v Triangle parameter at toi.
     /// @param[out] output_tolerance The resulting tolerance.
     /// @return True if there is a root (collision), false otherwise.
     bool vertex_face_interval_root_finder_BFS(
@@ -215,6 +223,8 @@ namespace ticcd {
         const Scalar max_time,
         const long max_itr,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         Scalar &output_tolerance);
 
     // calculate the sign of f. dim is the dimension we are evaluating.

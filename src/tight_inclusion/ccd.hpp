@@ -29,6 +29,8 @@ namespace ticcd {
     ///                If you are checking a single query without a scene, please set it as {-1,-1,-1}.
     /// @param[in] ms The minimum separation. should set: ms < max(abs(x),1), ms < max(abs(y),1), ms < max(abs(z),1) of the QUERY (NOT THE SCENE!).
     /// @param[out] toi The earliest time of collision if collision happens. If there is no collision, toi will be infinite.
+    /// @param[out] u The parameter of edge ab at toi. If there is no collision, u will be infinite.
+    /// @param[out] u The parameter of edge cd at toi. If there is no collision, v will be infinite.
     /// @param[in] tolerance A user - input solving precision. We suggest to use 1e-6.
     /// @param[in] t_max The upper bound of the time interval [0,t_max] to be checked. 0<=t_max<=1
     /// @param[in] max_itr A user-defined value to terminate the algorithm earlier, and return a result under current
@@ -49,6 +51,8 @@ namespace ticcd {
         const Array3 &err,
         const Scalar ms,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         const Scalar tolerance,
         const Scalar t_max,
         const long max_itr,
@@ -72,6 +76,8 @@ namespace ticcd {
     ///                If you are checking a single query without a scene, please set it as {-1,-1,-1}.
     /// @param[in] ms The minimum separation. should set: ms < max(abs(x),1), ms < max(abs(y),1), ms < max(abs(z),1) of the QUERY (NOT THE SCENE!).
     /// @param[out] toi The earliest time of collision if collision happens. If there is no collision, toi will be infinite.
+    /// @param[out] u The Triangle parameter at toi. If there is no collision, u will be infinite.
+    /// @param[out] v The Triangle parameter at toi. If there is no collision, v will be infinite.
     /// @param[in] tolerance A user - input solving precision. We suggest to use 1e-6.
     /// @param[in] t_max The upper bound of the time interval [0,t_max] to be checked. 0<=t_max<=1
     /// @param[in] max_itr A user-defined value to terminate the algorithm earlier, and return a result under current
@@ -92,6 +98,8 @@ namespace ticcd {
         const Array3 &err,
         const Scalar ms,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         const Scalar tolerance,
         const Scalar t_max,
         const long max_itr,

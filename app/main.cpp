@@ -107,6 +107,8 @@ void check_sample_queries(
                 // Output of CCD
                 bool result;
                 double toi;
+                double u;
+                double v;
                 double output_tolerance = tolerance;
 
                 timer.start();
@@ -114,7 +116,7 @@ void check_sample_queries(
                     result = edgeEdgeCCD(
                         V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
                         V.row(5), V.row(6), V.row(7), err, minimum_seperation,
-                        toi, tolerance, t_max, max_itr, output_tolerance,
+                        toi, u, v, tolerance, t_max, max_itr, output_tolerance,
                         no_zero_toi, ccd_method);
                     // result = rational::edgeEdgeCCD(
                     //     V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
@@ -124,7 +126,7 @@ void check_sample_queries(
                     result = vertexFaceCCD(
                         V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
                         V.row(5), V.row(6), V.row(7), err, minimum_seperation,
-                        toi, tolerance, t_max, max_itr, output_tolerance,
+                        toi, u, v, tolerance, t_max, max_itr, output_tolerance,
                         no_zero_toi, ccd_method);
                     // result = rational::vertexFaceCCD(
                     //     V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
@@ -211,10 +213,10 @@ void check_single_case()
     constexpr double t_max = 1;
     constexpr long max_itr = 1e6;
 
-    double toi, output_tolerance;
+    double toi, u, v, output_tolerance;
     const bool res = edgeEdgeCCD(
         ea0_t0, ea1_t0, ea0_t1, ea1_t1, eb0_t0, eb1_t0, eb0_t1, eb1_t1, err, ms,
-        toi, tolerance, t_max, max_itr, output_tolerance);
+        toi, u, v, tolerance, t_max, max_itr, output_tolerance);
 
     logger().info("Double CCD result: {}", res);
 #ifdef TIGHT_INCLUSION_CHECK_QUEUE_SIZE

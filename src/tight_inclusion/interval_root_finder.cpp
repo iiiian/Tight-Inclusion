@@ -327,12 +327,9 @@ namespace ticcd {
 
             bool zero_in, box_in;
             Array3 tol_placeholder;
-            {
-                TIGHT_INCLUSION_SCOPED_TIMER(time_predicates);
-                zero_in = origin_in_bbox_eval<is_vertex_face, false>(
-                    current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                    err, ms, box_in, tol_placeholder);
-            }
+            zero_in = origin_in_bbox_eval<is_vertex_face, false>(
+                current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, err,
+                ms, box_in, tol_placeholder);
 
             // #ifdef TIGHT_INCLUSION_WITH_RATIONAL // this is defined in the begining of this file
             // zero_in = origin_in_function_bounding_box_rational<is_vertex_face>(
@@ -343,11 +340,7 @@ namespace ticcd {
                 continue;
             }
 
-            Array3 widths;
-            {
-                TIGHT_INCLUSION_SCOPED_TIMER(time_width);
-                widths = width(current);
-            }
+            Array3 widths = width(current);
 
             if (box_in || (widths <= tol).all()) {
                 TOI = current[0].lower;
@@ -395,6 +388,8 @@ namespace ticcd {
         long max_iter,
         bool is_unit_interval,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         Scalar &output_tolerance)
     {
         // stack of (interval, tree level) pair.
@@ -473,6 +468,8 @@ namespace ticcd {
             if (is_earliest_candidate && is_interval_small_enough) {
                 // return time interval lower bound as toi
                 toi = get_toi(current).value();
+                u = current[1].lower.value();
+                v = current[2].lower.value();
                 output_tolerance = co_domain_tolerance;
                 return true;
             }
@@ -503,6 +500,8 @@ namespace ticcd {
             // max iter enabled and reach max iter. return earliest candidate and terminate.
             if (max_iter > 0 && iter_count > max_iter) {
                 toi = get_toi(earliest_candidate).value();
+                u = current[1].lower.value();
+                v = current[2].lower.value();
                 output_tolerance = std::max(
                     co_domain_tolerance,
                     earliest_bbox_eval_tolerance.maxCoeff());
@@ -519,18 +518,28 @@ namespace ticcd {
                 current, split_dimension, push, is_vertex_face, max_time);
             if (overflow) {
                 logger().error("overflow occured when splitting intervals!");
+                toi = get_toi(current).value();
+                u = current[1].lower.value();
+                v = current[2].lower.value();
+                output_tolerance = std::max(
+                    co_domain_tolerance,
+                    earliest_bbox_eval_tolerance.maxCoeff());
                 return true;
             }
         }
 
         if (skipped_candidate) {
             toi = get_toi(*skipped_candidate).value();
+            u = (*skipped_candidate)[1].lower.value();
+            v = (*skipped_candidate)[2].lower.value();
             output_tolerance = co_domain_tolerance;
             return true;
         }
 
-        // no collision, set toi and output_tolerance to infinity
+        // no collision, set all out parameter to infintity
         toi = std::numeric_limits<Scalar>::infinity();
+        u = std::numeric_limits<Scalar>::infinity();
+        v = std::numeric_limits<Scalar>::infinity();
         output_tolerance = std::numeric_limits<Scalar>::infinity();
         return false;
     }
@@ -552,6 +561,8 @@ namespace ticcd {
         const Scalar max_time,
         const long max_itr,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         Scalar &output_tolerance)
     {
         // build interval set [0,t_max]x[0,1]x[0,1]
@@ -565,7 +576,7 @@ namespace ticcd {
 
         return interval_root_finder_BFS<is_vertex_face>(
             a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, iset, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, true, toi,
+            co_domain_tolerance, err, ms, max_time, max_itr, true, toi, u, v,
             output_tolerance);
     }
 
@@ -658,11 +669,13 @@ namespace ticcd {
         const Scalar max_time,
         const long max_itr,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         Scalar &output_tolerance)
     {
         return interval_root_finder_BFS<false>(
             ea0_t0, ea1_t0, eb0_t0, eb1_t0, ea0_t1, ea1_t1, eb0_t1, eb1_t1, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, toi,
+            co_domain_tolerance, err, ms, max_time, max_itr, toi, u, v,
             output_tolerance);
     }
 
@@ -683,11 +696,13 @@ namespace ticcd {
         const Scalar max_time,
         const long max_itr,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         Scalar &output_tolerance)
     {
         return interval_root_finder_BFS<true>(
             v_t0, f0_t0, f1_t0, f2_t0, v_t1, f0_t1, f1_t1, f2_t1, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, toi,
+            co_domain_tolerance, err, ms, max_time, max_itr, toi, u, v,
             output_tolerance);
     }
 
@@ -698,8 +713,8 @@ namespace ticcd {
     // clang-format off
     template bool interval_root_finder_DFS<false>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Array3 &,const Scalar,Scalar &);
     template bool interval_root_finder_DFS<true>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Array3 &,const Scalar,Scalar &);
-    template bool interval_root_finder_BFS<false>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Scalar,const Array3 &,const Scalar,const Scalar,const long,Scalar &,Scalar &);
-    template bool interval_root_finder_BFS<true>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Scalar,const Array3 &,const Scalar,const Scalar,const long,Scalar &,Scalar &);
+    template bool interval_root_finder_BFS<false>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Scalar,const Array3 &,const Scalar,const Scalar,const long,Scalar &,Scalar &,Scalar &,Scalar &);
+    template bool interval_root_finder_BFS<true>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Scalar,const Array3 &,const Scalar,const Scalar,const long,Scalar &,Scalar &,Scalar &,Scalar &);
     // clang-format on
 
 } // namespace ticcd

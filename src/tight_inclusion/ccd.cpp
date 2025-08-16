@@ -153,6 +153,8 @@ namespace ticcd {
         const Array3 &err_in,
         const Scalar ms_in,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         const Scalar tolerance_in,
         const Scalar t_max_in,
         const long max_itr,
@@ -198,14 +200,18 @@ namespace ticcd {
             switch (ccd_method) {
             case CCDRootFindingMethod::DEPTH_FIRST_SEARCH:
                 // no handling for zero toi
-                return interval_root_finder_DFS<is_vertex_face>(
-                    a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, tol, err,
-                    ms, toi);
+                // return interval_root_finder_DFS<is_vertex_face>(
+                //     a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, tol, err,
+                //     ms, toi);
+                assert(
+                    false
+                    && "u v output not implemented, disable DFS search for now");
             case CCDRootFindingMethod::BREADTH_FIRST_SEARCH:
                 assert(t_max >= 0 && t_max <= 1);
                 tmp_is_impacting = interval_root_finder_BFS<is_vertex_face>(
                     a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, tol,
-                    tolerance, err, ms, t_max, max_itr, toi, output_tolerance);
+                    tolerance, err, ms, t_max, max_itr, toi, u, v,
+                    output_tolerance);
                 break;
             }
             assert(!tmp_is_impacting || toi >= 0);
@@ -266,6 +272,8 @@ namespace ticcd {
         const Array3 &err_in,
         const Scalar ms_in,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         const Scalar tolerance_in,
         const Scalar t_max_in,
         const long max_itr,
@@ -275,7 +283,7 @@ namespace ticcd {
     {
         return CCD</*is_vertex_face=*/false>(
             ea0_t0, ea1_t0, eb0_t0, eb1_t0, ea0_t1, ea1_t1, eb0_t1, eb1_t1,
-            err_in, ms_in, toi, tolerance_in, t_max_in, max_itr,
+            err_in, ms_in, toi, u, v, tolerance_in, t_max_in, max_itr,
             output_tolerance, no_zero_toi, ccd_method);
     }
 
@@ -291,6 +299,8 @@ namespace ticcd {
         const Array3 &err_in,
         const Scalar ms_in,
         Scalar &toi,
+        Scalar &u,
+        Scalar &v,
         const Scalar tolerance_in,
         const Scalar t_max_in,
         const long max_itr,
@@ -300,8 +310,8 @@ namespace ticcd {
     {
         return CCD</*is_vertex_face=*/true>(
             v_t0, f0_t0, f1_t0, f2_t0, v_t1, f0_t1, f1_t1, f2_t1, err_in, ms_in,
-            toi, tolerance_in, t_max_in, max_itr, output_tolerance, no_zero_toi,
-            ccd_method);
+            toi, u, v, tolerance_in, t_max_in, max_itr, output_tolerance,
+            no_zero_toi, ccd_method);
     }
 
 #ifdef TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT
