@@ -1,7 +1,7 @@
 #pragma once
 
 #include <tight_inclusion/interval.hpp>
-#include "types.hpp"
+#include <tight_inclusion/types.hpp>
 
 namespace ticcd {
     void convert_tuv_to_array(

@@ -1,12 +1,12 @@
 // A root finder using interval arithmetic.
-#include "interval_root_finder.hpp"
-#include "types.hpp"
-#include <optional>
 
-#include <tight_inclusion/timer.hpp>
+#include <tight_inclusion/interval_root_finder.hpp>
+
+#include <tight_inclusion/types.hpp>
 #include <tight_inclusion/avx.hpp>
 #include <tight_inclusion/logger.hpp>
 
+#include <optional>
 #include <queue>
 #include <vector>
 #include <algorithm>
