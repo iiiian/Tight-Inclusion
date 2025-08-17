@@ -7,7 +7,6 @@
 #include <tight_inclusion/logger.hpp>
 
 #include <optional>
-#include <queue>
 #include <vector>
 #include <algorithm>
 
@@ -269,108 +268,21 @@ namespace ticcd {
         return false; // no overflow
     }
 
-    // this version cannot give the impact time at t=1, although this collision can
-    // be detected at t=0 of the next time step, but still may cause problems in
-    // line-search based physical simulation
-    template <bool is_vertex_face>
-    bool interval_root_finder_DFS(
-        const Vector3 &a_t0,
-        const Vector3 &b_t0,
-        const Vector3 &c_t0,
-        const Vector3 &d_t0,
-        const Vector3 &a_t1,
-        const Vector3 &b_t1,
-        const Vector3 &c_t1,
-        const Vector3 &d_t1,
-        const Array3 &tol,
-        const Array3 &err,
-        const Scalar ms,
-        Scalar &toi)
-    {
-        auto cmp_time = [](const Interval3 &i1, const Interval3 &i2) {
-            return i1[0].lower >= i2[0].lower;
-        };
-
-        // build interval set [0,1]x[0,1]x[0,1]
-        const Interval zero_to_one = Interval(NumCCD(0, 0), NumCCD(1, 0));
-        Interval3 iset = {{zero_to_one, zero_to_one, zero_to_one}};
-
-        // Stack of intervals and the last split dimension
-        std::priority_queue<
-            Interval3, std::vector<Interval3>, decltype(cmp_time)>
-            istack(cmp_time);
-        istack.push(std::move(iset));
-
-        Array3 err_and_ms = err + ms;
-
-        int refine = 0; // interval split count. aka tree depth
-
-        toi = std::numeric_limits<Scalar>::infinity();
-        NumCCD TOI(1, 0);
-
-        bool collision = false;
-        int rnbr = 0;
-        while (!istack.empty()) {
-            Interval3 current = istack.top();
-            istack.pop();
-
-            // if(rnbr>0&&less_than( current[0].first,TOI)){
-            //     continue;
-            // }
-
-            //TOI should always be no larger than current
-            if (current[0].lower >= TOI) {
-                continue;
-            }
-
-            refine++;
-
-            bool zero_in, box_in;
-            Array3 tol_placeholder;
-            zero_in = origin_in_bbox_eval<is_vertex_face, false>(
-                current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, err,
-                ms, box_in, tol_placeholder);
-
-            // #ifdef TIGHT_INCLUSION_WITH_RATIONAL // this is defined in the begining of this file
-            // zero_in = origin_in_function_bounding_box_rational<is_vertex_face>(
-            //     current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1);
-            // #endif
-
-            if (!zero_in) {
-                continue;
-            }
-
-            Array3 widths = width(current);
-
-            if (box_in || (widths <= tol).all()) {
-                TOI = current[0].lower;
-                collision = true;
-                rnbr++;
-                // continue;
-                toi = TOI.value();
-                return true;
-            }
-
-            // find the next dimension to split
-            int split_i = find_next_split(widths, tol);
-
-            bool overflowed = split_and_push(
-                current, split_i,
-                [&](const Interval3 &i) { istack.emplace(i); }, is_vertex_face);
-            if (overflowed) {
-                logger().error("overflow occured when splitting intervals!");
-                return true;
-            }
-        }
-        if (collision)
-            toi = TOI.value();
-        return collision;
-    }
-
     NumCCD get_toi(const Interval3 &tuv) { return tuv[0].lower; }
 
+    Collision make_collision(const Interval3 &tuv, Scalar tolerance)
+    {
+        Collision c;
+        c.t = {tuv[0].lower.value(), tuv[0].upper.value()};
+        c.u = {tuv[1].lower.value(), tuv[1].upper.value()};
+        c.v = {tuv[2].lower.value(), tuv[2].upper.value()};
+        c.tolerance = tolerance;
+
+        return c;
+    }
+
     template <bool is_vertex_face>
-    bool interval_root_finder_BFS(
+    std::optional<Collision> interval_root_finder_BFS(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -386,11 +298,7 @@ namespace ticcd {
         Scalar ms,
         Scalar max_time,
         long max_iter,
-        bool is_unit_interval,
-        Scalar &toi,
-        Scalar &u,
-        Scalar &v,
-        Scalar &output_tolerance)
+        bool is_unit_interval)
     {
         // stack of (interval, tree level) pair.
         // will be sorted by level first then toi lower bound second
@@ -466,12 +374,7 @@ namespace ticcd {
 
             // earlist root interval that is small enough. terminate.
             if (is_earliest_candidate && is_interval_small_enough) {
-                // return time interval lower bound as toi
-                toi = get_toi(current).value();
-                u = current[1].lower.value();
-                v = current[2].lower.value();
-                output_tolerance = co_domain_tolerance;
-                return true;
+                return make_collision(current, co_domain_tolerance);
             }
 
             // root interval that is small enough but not the earliest,
@@ -481,7 +384,7 @@ namespace ticcd {
                     if (get_toi(*skipped_candidate) > get_toi(current)) {
                         skipped_candidate = current;
                     }
-                }else {
+                } else {
                     skipped_candidate = current;
                 }
                 continue;
@@ -500,13 +403,10 @@ namespace ticcd {
 
             // max iter enabled and reach max iter. return earliest candidate and terminate.
             if (max_iter > 0 && iter_count > max_iter) {
-                toi = get_toi(earliest_candidate).value();
-                u = current[1].lower.value();
-                v = current[2].lower.value();
-                output_tolerance = std::max(
+                Scalar true_tolerance = std::max(
                     co_domain_tolerance,
                     earliest_bbox_eval_tolerance.maxCoeff());
-                return true;
+                return make_collision(earliest_candidate, true_tolerance);
             }
 
             // find the next dimension to split
@@ -519,34 +419,23 @@ namespace ticcd {
                 current, split_dimension, push, is_vertex_face, max_time);
             if (overflow) {
                 logger().error("overflow occured when splitting intervals!");
-                toi = get_toi(current).value();
-                u = current[1].lower.value();
-                v = current[2].lower.value();
-                output_tolerance = std::max(
+
+                Scalar true_tolerance = std::max(
                     co_domain_tolerance,
                     earliest_bbox_eval_tolerance.maxCoeff());
-                return true;
+                return make_collision(current, true_tolerance);
             }
         }
 
         if (skipped_candidate) {
-            toi = get_toi(*skipped_candidate).value();
-            u = (*skipped_candidate)[1].lower.value();
-            v = (*skipped_candidate)[2].lower.value();
-            output_tolerance = co_domain_tolerance;
-            return true;
+            return make_collision(*skipped_candidate, co_domain_tolerance);
         }
 
-        // no collision, set all out parameter to infintity
-        toi = std::numeric_limits<Scalar>::infinity();
-        u = std::numeric_limits<Scalar>::infinity();
-        v = std::numeric_limits<Scalar>::infinity();
-        output_tolerance = std::numeric_limits<Scalar>::infinity();
-        return false;
+        return std::nullopt;
     }
 
     template <bool is_vertex_face>
-    bool interval_root_finder_BFS(
+    std::optional<Collision> interval_root_finder_BFS(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -556,29 +445,25 @@ namespace ticcd {
         const Vector3 &c_t1,
         const Vector3 &d_t1,
         const Array3 &tol,
-        const Scalar co_domain_tolerance,
+        Scalar co_domain_tolerance,
         const Array3 &err,
-        const Scalar ms,
-        const Scalar max_time,
-        const long max_itr,
-        Scalar &toi,
-        Scalar &u,
-        Scalar &v,
-        Scalar &output_tolerance)
+        Scalar ms,
+        Scalar max_time,
+        long max_itr)
     {
         // build interval set [0,t_max]x[0,1]x[0,1]
         const Interval zero_to_one = Interval(NumCCD(0, 0), NumCCD(1, 0));
         Interval3 iset = {{
-            // Interval(NumCCD(0, 0), NumCCD(max_time)),
-            zero_to_one,
+            Interval(NumCCD(0, 0), NumCCD(max_time)),
             zero_to_one,
             zero_to_one,
         }};
 
+        bool is_unit_interval = (max_time == 1.0f);
+
         return interval_root_finder_BFS<is_vertex_face>(
             a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, iset, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, true, toi, u, v,
-            output_tolerance);
+            co_domain_tolerance, err, ms, max_time, max_itr, is_unit_interval);
     }
 
     Array3 get_numerical_error(
@@ -645,7 +530,7 @@ namespace ticcd {
         return filter * delta.array().pow(3);
     }
 
-    bool edge_edge_interval_root_finder_DFS(
+    std::optional<Collision> edge_edge_interval_root_finder_BFS(
         const Vector3 &ea0_t0,
         const Vector3 &ea1_t0,
         const Vector3 &eb0_t0,
@@ -655,62 +540,19 @@ namespace ticcd {
         const Vector3 &eb0_t1,
         const Vector3 &eb1_t1,
         const Array3 &tol,
-        const Array3 &err,
-        const Scalar ms,
-        Scalar &toi)
-    {
-        return interval_root_finder_DFS<false>(
-            ea0_t0, ea1_t0, eb0_t0, eb1_t0, ea0_t1, ea1_t1, eb0_t1, eb1_t1, tol,
-            err, ms, toi);
-    }
-
-    bool vertex_face_interval_root_finder_DFS(
-        const Vector3 &v_t0,
-        const Vector3 &f0_t0,
-        const Vector3 &f1_t0,
-        const Vector3 &f2_t0,
-        const Vector3 &v_t1,
-        const Vector3 &f0_t1,
-        const Vector3 &f1_t1,
-        const Vector3 &f2_t1,
-        const Array3 &tol,
-        const Array3 &err,
-        const Scalar ms,
-        Scalar &toi)
-    {
-        return interval_root_finder_DFS<true>(
-            v_t0, f0_t0, f1_t0, f2_t0, v_t1, f0_t1, f1_t1, f2_t1, tol, err, ms,
-            toi);
-    }
-
-    bool edge_edge_interval_root_finder_BFS(
-        const Vector3 &ea0_t0,
-        const Vector3 &ea1_t0,
-        const Vector3 &eb0_t0,
-        const Vector3 &eb1_t0,
-        const Vector3 &ea0_t1,
-        const Vector3 &ea1_t1,
-        const Vector3 &eb0_t1,
-        const Vector3 &eb1_t1,
-        const Array3 &tol,
-        const Scalar co_domain_tolerance,
+        Scalar co_domain_tolerance,
         // this is the maximum error on each axis when calculating the vertices, err, aka, filter
         const Array3 &err,
-        const Scalar ms,
-        const Scalar max_time,
-        const long max_itr,
-        Scalar &toi,
-        Scalar &u,
-        Scalar &v,
-        Scalar &output_tolerance)
+        Scalar ms,
+        Scalar max_time,
+        long max_itr)
     {
         return interval_root_finder_BFS<false>(
             ea0_t0, ea1_t0, eb0_t0, eb1_t0, ea0_t1, ea1_t1, eb0_t1, eb1_t1, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, toi, u, v,
-            output_tolerance);
+            co_domain_tolerance, err, ms, max_time, max_itr);
     }
 
-    bool vertex_face_interval_root_finder_BFS(
+    std::optional<Collision> vertex_face_interval_root_finder_BFS(
         const Vector3 &v_t0,
         const Vector3 &f0_t0,
         const Vector3 &f1_t0,
@@ -720,32 +562,52 @@ namespace ticcd {
         const Vector3 &f1_t1,
         const Vector3 &f2_t1,
         const Array3 &tol,
-        const Scalar co_domain_tolerance,
+        Scalar co_domain_tolerance,
         // this is the maximum error on each axis when calculating the vertices, err, aka, filter
         const Array3 &err,
-        const Scalar ms,
-        const Scalar max_time,
-        const long max_itr,
-        Scalar &toi,
-        Scalar &u,
-        Scalar &v,
-        Scalar &output_tolerance)
+        Scalar ms,
+        Scalar max_time,
+        long max_itr)
     {
         return interval_root_finder_BFS<true>(
             v_t0, f0_t0, f1_t0, f2_t0, v_t1, f0_t1, f1_t1, f2_t1, tol,
-            co_domain_tolerance, err, ms, max_time, max_itr, toi, u, v,
-            output_tolerance);
+            co_domain_tolerance, err, ms, max_time, max_itr);
     }
 
     // ------------------------------------------------------------------------
     // Template instantiation
     // ------------------------------------------------------------------------
 
-    // clang-format off
-    template bool interval_root_finder_DFS<false>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Array3 &,const Scalar,Scalar &);
-    template bool interval_root_finder_DFS<true>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Array3 &,const Scalar,Scalar &);
-    template bool interval_root_finder_BFS<false>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Scalar,const Array3 &,const Scalar,const Scalar,const long,Scalar &,Scalar &,Scalar &,Scalar &);
-    template bool interval_root_finder_BFS<true>(const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Vector3 &,const Array3 &,const Scalar,const Array3 &,const Scalar,const Scalar,const long,Scalar &,Scalar &,Scalar &,Scalar &);
-    // clang-format on
+    template std::optional<Collision> interval_root_finder_BFS<true>(
+        const Vector3 &a_t0,
+        const Vector3 &b_t0,
+        const Vector3 &c_t0,
+        const Vector3 &d_t0,
+        const Vector3 &a_t1,
+        const Vector3 &b_t1,
+        const Vector3 &c_t1,
+        const Vector3 &d_t1,
+        const Array3 &tol,
+        Scalar co_domain_tolerance,
+        const Array3 &err,
+        Scalar ms,
+        Scalar max_time,
+        long max_itr);
+
+    template std::optional<Collision> interval_root_finder_BFS<false>(
+        const Vector3 &a_t0,
+        const Vector3 &b_t0,
+        const Vector3 &c_t0,
+        const Vector3 &d_t0,
+        const Vector3 &a_t1,
+        const Vector3 &b_t1,
+        const Vector3 &c_t1,
+        const Vector3 &d_t1,
+        const Array3 &tol,
+        Scalar co_domain_tolerance,
+        const Array3 &err,
+        Scalar ms,
+        Scalar max_time,
+        long max_itr);
 
 } // namespace ticcd

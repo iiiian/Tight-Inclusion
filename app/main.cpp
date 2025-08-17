@@ -56,8 +56,6 @@ void check_sample_queries(
     const Eigen::Array3d err(-1, -1, -1);
     constexpr double t_max = 1;
     constexpr bool no_zero_toi = false;
-    constexpr CCDRootFindingMethod ccd_method =
-        CCDRootFindingMethod::BREADTH_FIRST_SEARCH;
 
     int total_positives = 0;
     int total_false_positives = 0;
@@ -105,7 +103,7 @@ void check_sample_queries(
                 total_positives += expected_result;
 
                 // Output of CCD
-                bool result;
+                std::optional<Collision> collision;
                 double toi;
                 double u;
                 double v;
@@ -113,21 +111,15 @@ void check_sample_queries(
 
                 timer.start();
                 if (is_edge_edge) {
-                    result = edgeEdgeCCD(
+                    collision = edgeEdgeCCD(
                         V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
                         V.row(5), V.row(6), V.row(7), err, minimum_seperation,
-                        toi, u, v, tolerance, t_max, max_itr, output_tolerance,
-                        no_zero_toi, ccd_method);
-                    // result = rational::edgeEdgeCCD(
-                    //     V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
-                    //     V.row(5), V.row(6), V.row(7), err, minimum_seperation,
-                    //     toi);
+                        tolerance, t_max, max_itr, no_zero_toi);
                 } else {
-                    result = vertexFaceCCD(
+                    collision = vertexFaceCCD(
                         V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
                         V.row(5), V.row(6), V.row(7), err, minimum_seperation,
-                        toi, u, v, tolerance, t_max, max_itr, output_tolerance,
-                        no_zero_toi, ccd_method);
+                        tolerance, t_max, max_itr, no_zero_toi);
                     // result = rational::vertexFaceCCD(
                     //     V.row(0), V.row(1), V.row(2), V.row(3), V.row(4),
                     //     V.row(5), V.row(6), V.row(7), err, minimum_seperation,
@@ -136,8 +128,8 @@ void check_sample_queries(
                 timer.stop();
                 total_time_in_micro_sec += timer.getElapsedTimeInMicroSec();
 
-                if (result != expected_result) {
-                    if (result) {
+                if (collision.has_value() != expected_result) {
+                    if (collision) {
                         total_false_positives++;
                     } else {
                         total_false_negatives++;
@@ -214,11 +206,11 @@ void check_single_case()
     constexpr long max_itr = 1e6;
 
     double toi, u, v, output_tolerance;
-    const bool res = edgeEdgeCCD(
+    auto collision = edgeEdgeCCD(
         ea0_t0, ea1_t0, ea0_t1, ea1_t1, eb0_t0, eb1_t0, eb0_t1, eb1_t1, err, ms,
-        toi, u, v, tolerance, t_max, max_itr, output_tolerance);
+        tolerance, t_max, max_itr);
 
-    logger().info("Double CCD result: {}", res);
+    logger().info("Double CCD result: {}", collision.has_value());
 #ifdef TIGHT_INCLUSION_CHECK_QUEUE_SIZE
     logger().info("queue size max {}", return_queue_size());
 #endif
