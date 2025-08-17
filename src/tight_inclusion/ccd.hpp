@@ -133,45 +133,45 @@ namespace ticcd {
     long return_queue_size();
 
     // these function are designed to test the performance of floating point version but with double inputs
-#ifdef TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT
-    bool edgeEdgeCCD(
-        const Eigen::Vector3d &ea0_t0,
-        const Eigen::Vector3d &ea1_t0,
-        const Eigen::Vector3d &eb0_t0,
-        const Eigen::Vector3d &eb1_t0,
-        const Eigen::Vector3d &ea0_t1,
-        const Eigen::Vector3d &ea1_t1,
-        const Eigen::Vector3d &eb0_t1,
-        const Eigen::Vector3d &eb1_t1,
-        const Eigen::Array3d &err,
-        const double ms,
-        double &toi,
-        const double tolerance,
-        const double t_max,
-        const long max_itr,
-        double &output_tolerance,
-        bool no_zero_toi = DEFAULT_NO_ZERO_TOI,
-        const CCDRootFindingMethod ccd_method =
-            CCDRootFindingMethod::BREADTH_FIRST_SEARCH);
-
-    bool vertexFaceCCD(
-        const Eigen::Vector3d &v_t0,
-        const Eigen::Vector3d &f0_t0,
-        const Eigen::Vector3d &f1_t0,
-        const Eigen::Vector3d &f2_t0,
-        const Eigen::Vector3d &v_t1,
-        const Eigen::Vector3d &f0_t1,
-        const Eigen::Vector3d &f1_t1,
-        const Eigen::Vector3d &f2_t1,
-        const Eigen::Array3d &err,
-        const double ms,
-        double &toi,
-        const double tolerance,
-        const double t_max,
-        const long max_itr,
-        double &output_tolerance,
-        bool no_zero_toi = DEFAULT_NO_ZERO_TOI,
-        const CCDRootFindingMethod ccd_method =
-            CCDRootFindingMethod::BREADTH_FIRST_SEARCH);
-#endif
+    // #ifdef TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT
+    //     bool edgeEdgeCCD(
+    //         const Eigen::Vector3d &ea0_t0,
+    //         const Eigen::Vector3d &ea1_t0,
+    //         const Eigen::Vector3d &eb0_t0,
+    //         const Eigen::Vector3d &eb1_t0,
+    //         const Eigen::Vector3d &ea0_t1,
+    //         const Eigen::Vector3d &ea1_t1,
+    //         const Eigen::Vector3d &eb0_t1,
+    //         const Eigen::Vector3d &eb1_t1,
+    //         const Eigen::Array3d &err,
+    //         const double ms,
+    //         double &toi,
+    //         const double tolerance,
+    //         const double t_max,
+    //         const long max_itr,
+    //         double &output_tolerance,
+    //         bool no_zero_toi = DEFAULT_NO_ZERO_TOI,
+    //         const CCDRootFindingMethod ccd_method =
+    //             CCDRootFindingMethod::BREADTH_FIRST_SEARCH);
+    //
+    //     bool vertexFaceCCD(
+    //         const Eigen::Vector3d &v_t0,
+    //         const Eigen::Vector3d &f0_t0,
+    //         const Eigen::Vector3d &f1_t0,
+    //         const Eigen::Vector3d &f2_t0,
+    //         const Eigen::Vector3d &v_t1,
+    //         const Eigen::Vector3d &f0_t1,
+    //         const Eigen::Vector3d &f1_t1,
+    //         const Eigen::Vector3d &f2_t1,
+    //         const Eigen::Array3d &err,
+    //         const double ms,
+    //         double &toi,
+    //         const double tolerance,
+    //         const double t_max,
+    //         const long max_itr,
+    //         double &output_tolerance,
+    //         bool no_zero_toi = DEFAULT_NO_ZERO_TOI,
+    //         const CCDRootFindingMethod ccd_method =
+    //             CCDRootFindingMethod::BREADTH_FIRST_SEARCH);
+    // #endif
 } // namespace ticcd

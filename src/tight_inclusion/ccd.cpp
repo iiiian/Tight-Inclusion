@@ -314,78 +314,78 @@ namespace ticcd {
             no_zero_toi, ccd_method);
     }
 
-#ifdef TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT
-    // these function are designed to test the performance of floating point vertion but with double inputs
-    bool edgeEdgeCCD(
-        const Eigen::Vector3d &ea0_t0,
-        const Eigen::Vector3d &ea1_t0,
-        const Eigen::Vector3d &eb0_t0,
-        const Eigen::Vector3d &eb1_t0,
-        const Eigen::Vector3d &ea0_t1,
-        const Eigen::Vector3d &ea1_t1,
-        const Eigen::Vector3d &eb0_t1,
-        const Eigen::Vector3d &eb1_t1,
-        const Eigen::Array3d &err,
-        const double ms,
-        double &toi,
-        const double tolerance,
-        const double t_max,
-        const long max_itr,
-        double &output_tolerance,
-        bool no_zero_toi,
-        const CCDRootFindingMethod ccd_method)
-    {
-        Scalar _toi = toi;
-        Scalar _output_tolerance = output_tolerance;
-
-        const bool result = edgeEdgeCCD(
-            ea0_t0.cast<Scalar>(), ea1_t0.cast<Scalar>(), eb0_t0.cast<Scalar>(),
-            eb1_t0.cast<Scalar>(), ea0_t1.cast<Scalar>(), ea1_t1.cast<Scalar>(),
-            eb0_t1.cast<Scalar>(), eb1_t1.cast<Scalar>(), err.cast<Scalar>(),
-            static_cast<Scalar>(ms), _toi, static_cast<Scalar>(tolerance),
-            static_cast<Scalar>(t_max), max_itr, _output_tolerance, no_zero_toi,
-            ccd_method);
-
-        toi = _toi;
-        output_tolerance = _output_tolerance;
-
-        return result;
-    }
-
-    bool vertexFaceCCD(
-        const Eigen::Vector3d &v_t0,
-        const Eigen::Vector3d &f0_t0,
-        const Eigen::Vector3d &f1_t0,
-        const Eigen::Vector3d &f2_t0,
-        const Eigen::Vector3d &v_t1,
-        const Eigen::Vector3d &f0_t1,
-        const Eigen::Vector3d &f1_t1,
-        const Eigen::Vector3d &f2_t1,
-        const Eigen::Array3d &err,
-        const double ms,
-        double &toi,
-        const double tolerance,
-        const double t_max,
-        const long max_itr,
-        double &output_tolerance,
-        bool no_zero_toi,
-        const CCDRootFindingMethod ccd_method)
-    {
-        Scalar _toi = toi;
-        Scalar _output_tolerance = output_tolerance;
-
-        const bool result = vertexFaceCCD(
-            v_t0.cast<Scalar>(), f0_t0.cast<Scalar>(), f1_t0.cast<Scalar>(),
-            f2_t0.cast<Scalar>(), v_t1.cast<Scalar>(), f0_t1.cast<Scalar>(),
-            f1_t1.cast<Scalar>(), f2_t1.cast<Scalar>(), err.cast<Scalar>(),
-            static_cast<Scalar>(ms), _toi, static_cast<Scalar>(tolerance),
-            static_cast<Scalar>(t_max), max_itr, _output_tolerance, no_zero_toi,
-            ccd_method);
-
-        toi = _toi;
-        output_tolerance = _output_tolerance;
-
-        return result;
-    }
-#endif
+    // #ifdef TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT
+    //     // these function are designed to test the performance of floating point vertion but with double inputs
+    //     bool edgeEdgeCCD(
+    //         const Eigen::Vector3d &ea0_t0,
+    //         const Eigen::Vector3d &ea1_t0,
+    //         const Eigen::Vector3d &eb0_t0,
+    //         const Eigen::Vector3d &eb1_t0,
+    //         const Eigen::Vector3d &ea0_t1,
+    //         const Eigen::Vector3d &ea1_t1,
+    //         const Eigen::Vector3d &eb0_t1,
+    //         const Eigen::Vector3d &eb1_t1,
+    //         const Eigen::Array3d &err,
+    //         const double ms,
+    //         double &toi,
+    //         const double tolerance,
+    //         const double t_max,
+    //         const long max_itr,
+    //         double &output_tolerance,
+    //         bool no_zero_toi,
+    //         const CCDRootFindingMethod ccd_method)
+    //     {
+    //         Scalar _toi = toi;
+    //         Scalar _output_tolerance = output_tolerance;
+    //
+    //         const bool result = edgeEdgeCCD(
+    //             ea0_t0.cast<Scalar>(), ea1_t0.cast<Scalar>(), eb0_t0.cast<Scalar>(),
+    //             eb1_t0.cast<Scalar>(), ea0_t1.cast<Scalar>(), ea1_t1.cast<Scalar>(),
+    //             eb0_t1.cast<Scalar>(), eb1_t1.cast<Scalar>(), err.cast<Scalar>(),
+    //             static_cast<Scalar>(ms), _toi, static_cast<Scalar>(tolerance),
+    //             static_cast<Scalar>(t_max), max_itr, _output_tolerance, no_zero_toi,
+    //             ccd_method);
+    //
+    //         toi = _toi;
+    //         output_tolerance = _output_tolerance;
+    //
+    //         return result;
+    //     }
+    //
+    //     bool vertexFaceCCD(
+    //         const Eigen::Vector3d &v_t0,
+    //         const Eigen::Vector3d &f0_t0,
+    //         const Eigen::Vector3d &f1_t0,
+    //         const Eigen::Vector3d &f2_t0,
+    //         const Eigen::Vector3d &v_t1,
+    //         const Eigen::Vector3d &f0_t1,
+    //         const Eigen::Vector3d &f1_t1,
+    //         const Eigen::Vector3d &f2_t1,
+    //         const Eigen::Array3d &err,
+    //         const double ms,
+    //         double &toi,
+    //         const double tolerance,
+    //         const double t_max,
+    //         const long max_itr,
+    //         double &output_tolerance,
+    //         bool no_zero_toi,
+    //         const CCDRootFindingMethod ccd_method)
+    //     {
+    //         Scalar _toi = toi;
+    //         Scalar _output_tolerance = output_tolerance;
+    //
+    //         const bool result = vertexFaceCCD(
+    //             v_t0.cast<Scalar>(), f0_t0.cast<Scalar>(), f1_t0.cast<Scalar>(),
+    //             f2_t0.cast<Scalar>(), v_t1.cast<Scalar>(), f0_t1.cast<Scalar>(),
+    //             f1_t1.cast<Scalar>(), f2_t1.cast<Scalar>(), err.cast<Scalar>(),
+    //             static_cast<Scalar>(ms), _toi, static_cast<Scalar>(tolerance),
+    //             static_cast<Scalar>(t_max), max_itr, _output_tolerance, no_zero_toi,
+    //             ccd_method);
+    //
+    //         toi = _toi;
+    //         output_tolerance = _output_tolerance;
+    //
+    //         return result;
+    //     }
+    // #endif
 } // namespace ticcd
