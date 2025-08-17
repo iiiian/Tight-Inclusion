@@ -614,6 +614,36 @@ namespace ticcd {
         return filter * delta.array().pow(3);
     }
 
+    Array3 get_numerical_error(
+        const Vector3 &abs_max,
+        const bool is_vertex_face,
+        const bool using_minimum_separation)
+    {
+        Scalar eefilter;
+        Scalar vffilter;
+        if (!using_minimum_separation) {
+#ifdef TIGHT_INCLUSION_WITH_DOUBLE_PRECISION
+            eefilter = 6.217248937900877e-15;
+            vffilter = 6.661338147750939e-15;
+#else
+            eefilter = 3.337861e-06;
+            vffilter = 3.576279e-06;
+#endif
+        } else { // using minimum separation
+#ifdef TIGHT_INCLUSION_WITH_DOUBLE_PRECISION
+            eefilter = 7.105427357601002e-15;
+            vffilter = 7.549516567451064e-15;
+#else
+            eefilter = 3.814698e-06;
+            vffilter = 4.053116e-06;
+#endif
+        }
+
+        Vector3 delta = abs_max.cwiseMin(1);
+        Scalar filter = is_vertex_face ? vffilter : eefilter;
+        return filter * delta.array().pow(3);
+    }
+
     bool edge_edge_interval_root_finder_DFS(
         const Vector3 &ea0_t0,
         const Vector3 &ea1_t0,

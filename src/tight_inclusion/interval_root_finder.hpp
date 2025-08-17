@@ -266,4 +266,10 @@ namespace ticcd {
         const bool is_vertex_face,
         const bool using_minimum_separation);
 
+    // get the filter of ccd. the inputs are the vertices of the bounding box of the simulation scene
+    Array3 get_numerical_error(
+        const Vector3 &abs_max,
+        const bool is_vertex_face,
+        const bool using_minimum_separation);
+
 } // namespace ticcd
