@@ -13,23 +13,37 @@ if(TIGHT_INCLUSION_TOPLEVEL_PROJECT)
 else()
     # Don't use cmake_minimum_required here to avoid implicitly overriding parent policies
     if(${CMAKE_VERSION} VERSION_LESS ${REQUIRED_CMAKE_VERSION})
-        message(FATAL_ERROR "CMake required version to build Tight Inclusion is ${REQUIRED_CMAKE_VERSION}")
+        message(
+            FATAL_ERROR
+            "CMake required version to build Tight Inclusion is ${REQUIRED_CMAKE_VERSION}"
+        )
     endif()
 endif()
 
 # Include user-provided default options if available. We do that before the main
 # `project()` so that we can define the C/C++ compilers from the option file.
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/TightInclusionOptions.cmake)
-    message(STATUS "Using local options file: ${CMAKE_CURRENT_SOURCE_DIR}/TightInclusionOptions.cmake")
+    message(
+        STATUS
+        "Using local options file: ${CMAKE_CURRENT_SOURCE_DIR}/TightInclusionOptions.cmake"
+    )
     include(${CMAKE_CURRENT_SOURCE_DIR}/TightInclusionOptions.cmake)
 endif()
 
 # Enable ccache if available
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
-    option(TIGHT_INCLUSION_WITH_CCACHE "Enable ccache when building Tight Inclusion" ${TIGHT_INCLUSION_TOPLEVEL_PROJECT})
+    option(
+        TIGHT_INCLUSION_WITH_CCACHE
+        "Enable ccache when building Tight Inclusion"
+        ${TIGHT_INCLUSION_TOPLEVEL_PROJECT}
+    )
 else()
-    option(TIGHT_INCLUSION_WITH_CCACHE "Enable ccache when building Tight Inclusion" OFF)
+    option(
+        TIGHT_INCLUSION_WITH_CCACHE
+        "Enable ccache when building Tight Inclusion"
+        OFF
+    )
 endif()
 if(TIGHT_INCLUSION_WITH_CCACHE AND CCACHE_PROGRAM)
     message(STATUS "Enabling Ccache support")
@@ -39,7 +53,11 @@ if(TIGHT_INCLUSION_WITH_CCACHE AND CCACHE_PROGRAM)
     )
     foreach(lang IN ITEMS C CXX)
         set(CMAKE_${lang}_COMPILER_LAUNCHER
-            ${CMAKE_COMMAND} -E env ${ccacheEnv} ${CCACHE_PROGRAM}
+            ${CMAKE_COMMAND}
+            -E
+            env
+            ${ccacheEnv}
+            ${CCACHE_PROGRAM}
         )
     endforeach()
 endif()
@@ -56,18 +74,38 @@ endif()
 
 ################################################################################
 
-project(TightInclusion
-        DESCRIPTION "Tight Inclusion CCD"
-        LANGUAGES CXX
-        VERSION "1.0.4")
+project(
+    TightInclusion
+    DESCRIPTION "Tight Inclusion CCD"
+    LANGUAGES CXX
+    VERSION "1.0.4"
+)
 
-option(TIGHT_INCLUSION_WITH_RATIONAL          "Enable rational based predicates (for debugging)"        OFF)
-option(TIGHT_INCLUSION_WITH_TIMER             "Enable profiling timers (for debugging)"                 OFF)
-option(TIGHT_INCLUSION_WITH_DOUBLE_PRECISION  "Enable double precision floating point numbers as input"  ON)
-option(TIGHT_INCLUSION_LIMIT_QUEUE_SIZE       "Enable limitation of maximal queue size"                 OFF)
+option(
+    TIGHT_INCLUSION_WITH_RATIONAL
+    "Enable rational based predicates (for debugging)"
+    OFF
+)
+option(TIGHT_INCLUSION_WITH_TIMER "Enable profiling timers (for debugging)" OFF)
+option(
+    TIGHT_INCLUSION_WITH_DOUBLE_PRECISION
+    "Enable double precision floating point numbers as input"
+    ON
+)
+option(
+    TIGHT_INCLUSION_LIMIT_QUEUE_SIZE
+    "Enable limitation of maximal queue size"
+    OFF
+)
 
 include(CMakeDependentOption)
-cmake_dependent_option(TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT "Enable converting double queries to float" OFF "TIGHT_INCLUSION_WITH_DOUBLE_PRECISION" ON)
+cmake_dependent_option(
+    TIGHT_INCLUSION_FLOAT_WITH_DOUBLE_INPUT
+    "Enable converting double queries to float"
+    OFF
+    "TIGHT_INCLUSION_WITH_DOUBLE_PRECISION"
+    ON
+)
 
 # Set default minimum C++ standard
 if(TIGHT_INCLUSION_TOPLEVEL_PROJECT)
@@ -101,16 +139,19 @@ add_library(tight_inclusion::tight_inclusion ALIAS tight_inclusion)
 
 # Fill in configuration options
 configure_file(
-  "${TIGHT_INCLUSION_SOURCE_DIR}/config.hpp.in"
-  "${TIGHT_INCLUSION_SOURCE_DIR}/config.hpp")
+    "${TIGHT_INCLUSION_SOURCE_DIR}/config.hpp.in"
+    "${TIGHT_INCLUSION_SOURCE_DIR}/config.hpp"
+)
 
 # Add source and header files to tight_inclusion
 add_subdirectory("${TIGHT_INCLUSION_SOURCE_DIR}")
 
 # Public include directory for Tight Inclusion
-target_include_directories(tight_inclusion PUBLIC
-    $<BUILD_INTERFACE:${TIGHT_INCLUSION_INCLUDE_DIR}>
-    $<INSTALL_INTERFACE:include>
+target_include_directories(
+    tight_inclusion
+    PUBLIC
+        $<BUILD_INTERFACE:${TIGHT_INCLUSION_INCLUDE_DIR}>
+        $<INSTALL_INTERFACE:include>
 )
 
 ################################################################################
@@ -163,14 +204,19 @@ if(TIGHT_INCLUSION_TOPLEVEL_PROJECT)
     add_subdirectory(app)
 endif()
 
+################################################################################
 # Installation
+################################################################################
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-set(TIGHT_INCLUSION_CONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/tight_inclusion)
+set(TIGHT_INCLUSION_CONFIG_INSTALL_DIR
+    ${CMAKE_INSTALL_LIBDIR}/cmake/tight_inclusion
+)
 
 install(
-    TARGETS tight_inclusion tight_inclusion_warnings
+    TARGETS tight_inclusion tight_inclusion_warnings spdlog
     EXPORT tight_inclusionTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
