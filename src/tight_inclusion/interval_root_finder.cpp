@@ -481,8 +481,9 @@ namespace ticcd {
                     if (get_toi(*skipped_candidate) > get_toi(current)) {
                         skipped_candidate = current;
                     }
+                }else {
+                    skipped_candidate = current;
                 }
-                skipped_candidate = current;
                 continue;
             }
 
