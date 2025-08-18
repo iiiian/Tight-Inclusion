@@ -169,6 +169,7 @@ namespace ticcd {
         Array3 &tolerance)
     {
         bool xyz_bbox_in_eps[3];
+        bbox_in_eps = false;
         if constexpr (is_unit_tuv) {
             for (int dim = 0; dim < 3; dim++) {
                 if (!eval_unit_bbox_1d<is_vertex_face>(
