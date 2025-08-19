@@ -2,6 +2,7 @@
 
 #include <tight_inclusion/interval_root_finder.hpp>
 #include <tight_inclusion/timer.hpp>
+#include <tight_inclusion/logger.hpp>
 
 #include <vector>
 #include <optional>
@@ -192,9 +193,8 @@ namespace ticcd {
         // 1. if reach max_iter, shrink t_max.
         // 2. if ms is too large, shrink ms.
         // 3. if tolerance is too large, shrink tolerance.
-        constexpr int MAX_NO_ZERO_TOI_ITER = std::numeric_limits<int>::max();
-        // unsigned so can be larger than MAX_NO_ZERO_TOI_ITER
-        for (unsigned int i = 0; i < MAX_NO_ZERO_TOI_ITER; ++i) {
+        constexpr int MAX_NO_ZERO_TOI_ITER = 4;
+        for (int i = 0; i < MAX_NO_ZERO_TOI_ITER; ++i) {
             assert(t_max >= 0.0f && t_max <= 1.0f);
 
             auto collision = interval_root_finder_BFS<is_vertex_face>(
@@ -207,15 +207,18 @@ namespace ticcd {
             }
 
             // case 1
-            if (collision->tolerance > tolerance) {
-                t_max *= 0.9f;
+            if (collision->tolerance != tolerance) {
+                logger().debug("toi refine strategy 1: shrink t max");
+                t_max = collision->t(1);
             }
             //case 2
             else if (10.0f * tolerance < ms) {
+                logger().debug("toi refine strategy 2: shrink ms");
                 ms *= 0.5f;
             }
             //case 3
             else {
+                logger().debug("toi refine strategy 3: shrink tolerance");
                 tolerance *= 0.5f;
 
                 if constexpr (is_vertex_face) {
@@ -232,6 +235,7 @@ namespace ticcd {
 
         // if after max no zero toi iterations the toi is still zero,
         // ignore this collision.
+        logger().debug("toi refine fail, ignore potential collision");
         return std::nullopt;
     }
 
