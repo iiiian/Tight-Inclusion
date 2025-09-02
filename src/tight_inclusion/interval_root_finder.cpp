@@ -271,19 +271,21 @@ namespace ticcd {
 
     NumCCD get_toi(const Interval3 &tuv) { return tuv[0].lower; }
 
-    Collision make_collision(const Interval3 &tuv, Scalar tolerance)
+    CCDResult make_ccd_result(const Interval3 &tuv, Scalar tolerance)
     {
-        Collision c;
+        CCDResult c;
         c.t = {tuv[0].lower.value(), tuv[0].upper.value()};
         c.u = {tuv[1].lower.value(), tuv[1].upper.value()};
         c.v = {tuv[2].lower.value(), tuv[2].upper.value()};
         c.tolerance = tolerance;
+        c.use_small_ms = false;
+        c.small_ms_t = {0.0f, 0.0f}; // not use
 
         return c;
     }
 
     template <bool is_vertex_face>
-    std::optional<Collision> interval_root_finder_BFS(
+    std::optional<CCDResult> interval_root_finder_BFS(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -375,7 +377,7 @@ namespace ticcd {
 
             // earlist root interval that is small enough. terminate.
             if (is_earliest_candidate && is_interval_small_enough) {
-                return make_collision(current, co_domain_tolerance);
+                return make_ccd_result(current, co_domain_tolerance);
             }
 
             // root interval that is small enough but not the earliest,
@@ -407,7 +409,7 @@ namespace ticcd {
                 Scalar true_tolerance = std::max(
                     co_domain_tolerance,
                     earliest_bbox_eval_tolerance.maxCoeff());
-                return make_collision(earliest_candidate, true_tolerance);
+                return make_ccd_result(earliest_candidate, true_tolerance);
             }
 
             // find the next dimension to split
@@ -424,19 +426,19 @@ namespace ticcd {
                 Scalar true_tolerance = std::max(
                     co_domain_tolerance,
                     earliest_bbox_eval_tolerance.maxCoeff());
-                return make_collision(current, true_tolerance);
+                return make_ccd_result(current, true_tolerance);
             }
         }
 
         if (skipped_candidate) {
-            return make_collision(*skipped_candidate, co_domain_tolerance);
+            return make_ccd_result(*skipped_candidate, co_domain_tolerance);
         }
 
         return std::nullopt;
     }
 
     template <bool is_vertex_face>
-    std::optional<Collision> interval_root_finder_BFS(
+    std::optional<CCDResult> interval_root_finder_BFS(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -531,7 +533,7 @@ namespace ticcd {
         return filter * delta.array().pow(3);
     }
 
-    std::optional<Collision> edge_edge_interval_root_finder_BFS(
+    std::optional<CCDResult> edge_edge_interval_root_finder_BFS(
         const Vector3 &ea0_t0,
         const Vector3 &ea1_t0,
         const Vector3 &eb0_t0,
@@ -553,7 +555,7 @@ namespace ticcd {
             co_domain_tolerance, err, ms, max_time, max_itr);
     }
 
-    std::optional<Collision> vertex_face_interval_root_finder_BFS(
+    std::optional<CCDResult> vertex_face_interval_root_finder_BFS(
         const Vector3 &v_t0,
         const Vector3 &f0_t0,
         const Vector3 &f1_t0,
@@ -579,7 +581,7 @@ namespace ticcd {
     // Template instantiation
     // ------------------------------------------------------------------------
 
-    template std::optional<Collision> interval_root_finder_BFS<true>(
+    template std::optional<CCDResult> interval_root_finder_BFS<true>(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -595,7 +597,7 @@ namespace ticcd {
         Scalar max_time,
         long max_itr);
 
-    template std::optional<Collision> interval_root_finder_BFS<false>(
+    template std::optional<CCDResult> interval_root_finder_BFS<false>(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,

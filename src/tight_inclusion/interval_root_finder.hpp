@@ -29,7 +29,7 @@ namespace ticcd {
     /// @tparam is_vertex_face Whether to check vertex-face or edge-edge collision.
     /// @return True if there is a root (collision), false otherwise.
     template <bool is_vertex_face>
-    std::optional<Collision> interval_root_finder_BFS(
+    std::optional<CCDResult> interval_root_finder_BFS(
         const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -61,7 +61,7 @@ namespace ticcd {
     /// @param[in] max_time The maximum time to check.
     /// @param[in] max_itr The maximum number of iterations.
     /// @return True if there is a root (collision), false otherwise.
-    std::optional<Collision> edge_edge_interval_root_finder_BFS(
+    std::optional<CCDResult> edge_edge_interval_root_finder_BFS(
         const Vector3 &ea0_t0,
         const Vector3 &ea1_t0,
         const Vector3 &eb0_t0,
@@ -93,7 +93,7 @@ namespace ticcd {
     /// @param[in] max_time The maximum time to check.
     /// @param[in] max_itr The maximum number of iterations.
     /// @return True if there is a root (collision), false otherwise.
-    std::optional<Collision> vertex_face_interval_root_finder_BFS(
+    std::optional<CCDResult> vertex_face_interval_root_finder_BFS(
         const Vector3 &v_t0,
         const Vector3 &f0_t0,
         const Vector3 &f1_t0,

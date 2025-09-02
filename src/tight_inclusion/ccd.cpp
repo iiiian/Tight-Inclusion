@@ -142,7 +142,7 @@ namespace ticcd {
     }
 
     template <bool is_vertex_face>
-    std::optional<Collision>
+    std::optional<CCDResult>
     CCD(const Vector3 &a_t0,
         const Vector3 &b_t0,
         const Vector3 &c_t0,
@@ -183,63 +183,43 @@ namespace ticcd {
             true_err = err;
         }
 
+        auto result = interval_root_finder_BFS<is_vertex_face>(
+            a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, tol, tolerance,
+            true_err, ms, t_max, max_itr);
+
         if (!no_zero_toi) {
-            return interval_root_finder_BFS<is_vertex_face>(
-                a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, tol, tolerance,
-                true_err, ms, t_max, max_itr);
+            return result;
         }
 
-        // strategies for dealing with zero toi:
-        // 1. if reach max_iter, shrink t_max.
-        // 2. if ms is too large, shrink ms.
-        // 3. if tolerance is too large, shrink tolerance.
-        constexpr int MAX_NO_ZERO_TOI_ITER = 4;
-        for (int i = 0; i < MAX_NO_ZERO_TOI_ITER; ++i) {
-            assert(t_max >= 0.0f && t_max <= 1.0f);
+        if (!result || result->t(0) > 0.0f) {
+            return result;
+        }
 
-            auto collision = interval_root_finder_BFS<is_vertex_face>(
+        static constexpr int MS_REFINE_ITER = 2;
+        for (int i = 0; i < MS_REFINE_ITER; ++i) {
+
+            ms *= 0.5f;
+            auto refine_result = interval_root_finder_BFS<is_vertex_face>(
                 a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1, tol, tolerance,
                 true_err, ms, t_max, max_itr);
 
-            bool is_zero_toi = (collision && collision->t(0) == 0.0f);
-            if (!is_zero_toi) {
-                return collision;
-            }
-
-            // case 1
-            if (collision->tolerance != tolerance) {
-                logger().debug("toi refine strategy 1: shrink t max");
-                t_max = collision->t(1);
-            }
-            //case 2
-            else if (10.0f * tolerance < ms) {
-                logger().debug("toi refine strategy 2: shrink ms");
-                ms *= 0.5f;
-            }
-            //case 3
-            else {
-                logger().debug("toi refine strategy 3: shrink tolerance");
-                tolerance *= 0.5f;
-
-                if constexpr (is_vertex_face) {
-                    tol = compute_vertex_face_tolerances(
-                        a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                        tolerance);
-                } else {
-                    tol = compute_edge_edge_tolerances(
-                        a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
-                        tolerance);
-                }
+            if (!refine_result) {
+                result->use_small_ms = true;
+                result->small_ms_t = {1.0f, 1.0f};
+                return result;
+            } else if (refine_result->t(0) > 0.0f) {
+                result->use_small_ms = true;
+                result->small_ms_t = refine_result->t;
+                return result;
             }
         }
 
-        // if after max no zero toi iterations the toi is still zero,
-        // ignore this collision.
-        logger().debug("toi refine fail, ignore potential collision");
-        return std::nullopt;
+        result->use_small_ms = true;
+        result->small_ms_t = {0.0f, 0.0f};
+        return result;
     }
 
-    std::optional<Collision> edgeEdgeCCD(
+    std::optional<CCDResult> edgeEdgeCCD(
         const Vector3 &ea0_t0,
         const Vector3 &ea1_t0,
         const Vector3 &eb0_t0,
@@ -260,7 +240,7 @@ namespace ticcd {
             ms, tolerance, t_max, max_itr, no_zero_toi);
     }
 
-    std::optional<Collision> vertexFaceCCD(
+    std::optional<CCDResult> vertexFaceCCD(
         const Vector3 &v_t0,
         const Vector3 &f0_t0,
         const Vector3 &f1_t0,

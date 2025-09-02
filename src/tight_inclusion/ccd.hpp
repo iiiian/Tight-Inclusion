@@ -32,7 +32,7 @@ namespace ticcd {
     ///                    earlier and the precision will be user-defined precision -- tolerance.
     /// @param[in] no_zero_toi Refine further if a zero toi is produced (assumes not initially in contact).
     /// @return True if there is a collision, false otherwise.
-    std::optional<Collision> edgeEdgeCCD(
+    std::optional<CCDResult> edgeEdgeCCD(
         const Vector3 &ea0_t0,
         const Vector3 &ea1_t0,
         const Vector3 &eb0_t0,
@@ -69,7 +69,7 @@ namespace ticcd {
     ///                    earlier and the precision will be user-defined precision -- tolerance.
     /// @param[in] no_zero_toi Refine further if a zero toi is produced (assumes not initially in contact).
     /// @return True if there is a collision, false otherwise.
-    std::optional<Collision> vertexFaceCCD(
+    std::optional<CCDResult> vertexFaceCCD(
         const Vector3 &v_t0,
         const Vector3 &f0_t0,
         const Vector3 &f1_t0,

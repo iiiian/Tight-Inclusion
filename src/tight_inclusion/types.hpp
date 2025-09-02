@@ -16,10 +16,12 @@ namespace ticcd {
     typedef Eigen::Array<Scalar, 6, 1> Array6;
     typedef Eigen::Array<Scalar, 8, 1> Array8;
 
-    struct Collision {
+    struct CCDResult {
         Array2 t;
         Array2 u;
         Array2 v;
         Scalar tolerance;
+        bool use_small_ms;
+        Array2 small_ms_t;
     };
 } // namespace ticcd

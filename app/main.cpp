@@ -103,7 +103,7 @@ void check_sample_queries(
                 total_positives += expected_result;
 
                 // Output of CCD
-                std::optional<Collision> collision;
+                std::optional<CCDResult> collision;
                 double toi;
                 double u;
                 double v;
