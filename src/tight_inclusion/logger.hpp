@@ -1,7 +1,7 @@
 #pragma once
 
 // clang-format off
-#include <spdlog/fmt/bundled/ranges.h>
+#include <spdlog/fmt/ranges.h>
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
 // clang-format on

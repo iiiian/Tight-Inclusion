@@ -216,7 +216,7 @@ set(TIGHT_INCLUSION_CONFIG_INSTALL_DIR
 )
 
 install(
-    TARGETS tight_inclusion tight_inclusion_warnings spdlog
+    TARGETS tight_inclusion tight_inclusion_warnings
     EXPORT tight_inclusionTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
