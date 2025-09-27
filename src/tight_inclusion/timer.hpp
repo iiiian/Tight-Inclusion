@@ -15,14 +15,9 @@
 
 #include <tight_inclusion/config.hpp>
 
-#ifdef WIN32 // Windows system specific
-#include <windows.h>
-#elif __APPLE__             // Unix based system specific
-#include <mach/mach_time.h> // for mach_absolute_time
-#else
-#include <sys/time.h>
-#endif
+#include <chrono>
 #include <cstddef>
+#include <string>
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -34,81 +29,26 @@
 #endif
 
 namespace ticcd {
+
     class Timer {
     public:
         // default constructor
-        Timer()
-            : stopped(0),
-#ifdef WIN32
-              frequency(), startCount(), endCount()
-#elif __APPLE__
-              startCount(0), endCount(0)
-#else
-              startCount(), endCount()
-#endif
-        {
-#ifdef WIN32
-            QueryPerformanceFrequency(&frequency);
-            startCount.QuadPart = 0;
-            endCount.QuadPart = 0;
-#elif __APPLE__
-            startCount = 0;
-            endCount = 0;
-#else
-            startCount.tv_sec = startCount.tv_usec = 0;
-            endCount.tv_sec = endCount.tv_usec = 0;
-#endif
-
-            stopped = 0;
-        }
+        Timer() : stopped(true), start_time(), end_time() {}
         // default destructor
         ~Timer() {}
-
-#ifdef __APPLE__
-        //Raw mach_absolute_times going in, difference in seconds out
-        double subtractTimes(uint64_t endTime, uint64_t startTime)
-        {
-            uint64_t difference = endTime - startTime;
-            static double conversion = 0.0;
-
-            if (conversion == 0.0) {
-                mach_timebase_info_data_t info;
-                kern_return_t err = mach_timebase_info(&info);
-
-                //Convert the timebase into seconds
-                if (err == 0)
-                    conversion = 1e-9 * (double)info.numer / (double)info.denom;
-            }
-
-            return conversion * (double)difference;
-        }
-#endif
 
         // start timer
         void start()
         {
-            stopped = 0; // reset stop flag
-#ifdef WIN32
-            QueryPerformanceCounter(&startCount);
-#elif __APPLE__
-            startCount = mach_absolute_time();
-#else
-            gettimeofday(&startCount, NULL);
-#endif
+            stopped = false; // reset stop flag
+            start_time = clock::now();
         }
 
         // stop the timer
         void stop()
         {
-            stopped = 1; // set timer stopped flag
-
-#ifdef WIN32
-            QueryPerformanceCounter(&endCount);
-#elif __APPLE__
-            endCount = mach_absolute_time();
-#else
-            gettimeofday(&endCount, NULL);
-#endif
+            end_time = clock::now();
+            stopped = true; // set timer stopped flag
         }
         // get elapsed time in second
         double getElapsedTime() { return this->getElapsedTimeInSec(); }
@@ -126,50 +66,18 @@ namespace ticcd {
         // get elapsed time in micro-second
         double getElapsedTimeInMicroSec()
         {
-            double startTimeInMicroSec = 0;
-            double endTimeInMicroSec = 0;
-
-#ifdef WIN32
-            if (!stopped)
-                QueryPerformanceCounter(&endCount);
-
-            startTimeInMicroSec =
-                startCount.QuadPart * (1000000.0 / frequency.QuadPart);
-            endTimeInMicroSec =
-                endCount.QuadPart * (1000000.0 / frequency.QuadPart);
-#elif __APPLE__
-            if (!stopped)
-                endCount = mach_absolute_time();
-
-            return subtractTimes(endCount, startCount) / 1e-6;
-#else
-            if (!stopped)
-                gettimeofday(&endCount, NULL);
-
-            startTimeInMicroSec =
-                (startCount.tv_sec * 1000000.0) + startCount.tv_usec;
-            endTimeInMicroSec =
-                (endCount.tv_sec * 1000000.0) + endCount.tv_usec;
-#endif
-
-            return endTimeInMicroSec - startTimeInMicroSec;
+            const auto now = stopped ? end_time : clock::now();
+            const auto elapsed =
+                std::chrono::duration<double, std::micro>(now - start_time);
+            return elapsed.count();
         }
 
     private:
         // stop flag
-        int stopped;
-#ifdef WIN32
-        // ticks per second
-        LARGE_INTEGER frequency;
-        LARGE_INTEGER startCount;
-        LARGE_INTEGER endCount;
-#elif __APPLE__
-        uint64_t startCount;
-        uint64_t endCount;
-#else
-        timeval startCount;
-        timeval endCount;
-#endif
+        bool stopped;
+        using clock = std::chrono::steady_clock;
+        clock::time_point start_time;
+        clock::time_point end_time;
     };
 
     class ScopedTimer {
