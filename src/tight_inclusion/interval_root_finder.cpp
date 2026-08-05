@@ -574,7 +574,7 @@ namespace ticcd {
 
     // Based on narrowphase benchmark, >95% of CPU time is dominated by queries with
     // deep traversal level (10+). However, compared to u and v the refinement level
-    // of time is low. Thus instead of BFS we choose DFS with dedicate traversal
+    // of time is low. Thus instead of BFS we choose DFS with dedicated traversal
     // stack for each t lower bound.
     template <bool is_vertex_face>
     bool interval_root_finder_bucket_DFS(
