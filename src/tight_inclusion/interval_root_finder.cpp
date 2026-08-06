@@ -604,17 +604,20 @@ namespace ticcd {
         // Each exact t.lower owns a LIFO traversal stack. Processing the smallest
         // key first preserves chronological TOI order while exploring u/v deeply.
         std::map<NumCCD, std::vector<Interval3>> stacks;
-        stacks[initial[0].lower].push_back(initial);
+
+        Interval3 current = initial;
+        bool has_current = true;
 
         long iteration_count = 0;
-        while (!stacks.empty()) {
-            auto bucket = stacks.begin();
-            std::vector<Interval3> &stack = bucket->second;
-            Interval3 current = std::move(stack.back());
-            stack.pop_back();
-            if (stack.empty()) {
-                stacks.erase(bucket);
+        while (has_current || !stacks.empty()) {
+            auto bucket = stacks.end();
+            if (!has_current) {
+                bucket = stacks.begin();
+                std::vector<Interval3> &stack = bucket->second;
+                current = std::move(stack.back());
+                stack.pop_back();
             }
+            has_current = false;
 
             ++iteration_count;
             // True if L1 distance function eval resides completely inside zero interval.
@@ -626,6 +629,9 @@ namespace ticcd {
                     current, a_t0, b_t0, c_t0, d_t0, a_t1, b_t1, c_t1, d_t1,
                     err, bbox_in_eps, minimum_separation, &true_tolerance);
             if (!origin_in_bbox) {
+                if (bucket != stacks.end() && bucket->second.empty()) {
+                    stacks.erase(bucket);
+                }
                 continue;
             }
 
@@ -660,6 +666,11 @@ namespace ticcd {
                     {true_tolerance[0], true_tolerance[1], true_tolerance[2],
                      co_domain_tolerance});
                 return true;
+            }
+            // Keep an emptied bucket alive through evaluation and splitting so
+            // children with the same t.lower reuse its vector allocation.
+            if (bucket != stacks.end() && bucket->second.empty()) {
+                stacks.erase(bucket);
             }
         }
 
